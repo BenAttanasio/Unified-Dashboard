@@ -1,6 +1,9 @@
 "use client";
 import { useMetrics } from "@/hooks/use-metrics";
-import { compact, signed, deltaClass, isStale } from "@/lib/format";
+import { useHistory } from "@/hooks/use-history";
+import { full, signed, deltaClass, isStale } from "@/lib/format";
+import { Sparkline } from "./sparkline";
+import type { SocialMetric } from "@/lib/types";
 
 function ApifyCost({ cost, limit }: { cost: number | null | undefined; limit: number | null | undefined }) {
   if (cost == null) return null;
@@ -14,6 +17,36 @@ function ApifyCost({ cost, limit }: { cost: number | null | undefined; limit: nu
   );
 }
 
+function PlatformRow({ p }: { p: SocialMetric }) {
+  const nc = p.status === "not_configured";
+  const stale = !nc && isStale(p.fetchedAt, 6 * 60 * 60_000); // >6h old
+  const { data } = useHistory(p.key, p.metric, 30, !nc);
+  const points = data?.points ?? [];
+
+  return (
+    <div className={`platform-row${stale ? " is-stale" : ""}`}>
+      <div className="platform-head">
+        <span className="platform-name">{p.label}</span>
+        {nc ? (
+          <span className="not-configured">Not configured</span>
+        ) : (
+          <span className="platform-figures">
+            <span className="platform-count">{full(p.count)}</span>
+            {p.delta != null && p.delta !== 0 ? (
+              <span className={`platform-delta ${deltaClass(p.delta)}`}>{signed(p.delta)}</span>
+            ) : null}
+          </span>
+        )}
+      </div>
+      {!nc ? (
+        <div className="platform-spark">
+          <Sparkline points={points} color="var(--accent)" ariaLabel={`${p.label} trend`} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function AudienceSection() {
   const { data } = useMetrics();
   const rows = data?.social ?? [];
@@ -21,31 +54,15 @@ export function AudienceSection() {
   return (
     <section className="section area-audience">
       <div className="section-title section-title-row">
-        <span>Audience</span>
+        <span>
+          Audience <span className="section-caption">30-day trend · Δ vs 30d ago</span>
+        </span>
         <ApifyCost cost={data?.apify?.costUsd} limit={data?.apify?.limitUsd} />
       </div>
       <div className="platform-list">
-        {rows.map((p) => {
-          const nc = p.status === "not_configured";
-          const stale = !nc && isStale(p.fetchedAt, 6 * 60 * 60_000); // >6h old
-          return (
-            <div key={p.key} className={`platform-row${stale ? " is-stale" : ""}`}>
-              <span className="platform-name" style={{ gridColumn: "1 / 3" }}>
-                {p.label}
-              </span>
-              {nc ? (
-                <span className="not-configured" style={{ gridColumn: "3 / 5", textAlign: "right" }}>
-                  Not configured
-                </span>
-              ) : (
-                <>
-                  <span className="platform-count">{compact(p.count)}</span>
-                  <span className={`platform-delta ${deltaClass(p.delta)}`}>{signed(p.delta)}</span>
-                </>
-              )}
-            </div>
-          );
-        })}
+        {rows.map((p) => (
+          <PlatformRow key={p.id} p={p} />
+        ))}
         {rows.length === 0 ? <span className="not-configured">Loading…</span> : null}
       </div>
     </section>

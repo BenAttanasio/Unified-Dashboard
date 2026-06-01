@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import * as cache from "@/lib/cache";
 import { getDelta } from "@/lib/db";
-import { SOCIAL_PLATFORMS } from "@/lib/constants";
+import { SOCIAL_PLATFORMS, SOCIAL_DELTA_MS } from "@/lib/constants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,12 +18,14 @@ export function GET() {
     const entry = cache.getEntry(p.key);
     const count = num(entry.values, p.countMetric);
     return {
+      id: p.id ?? `${p.key}:${p.countMetric}`,
       key: p.key,
       label: p.label,
+      metric: p.countMetric,
       status: entry.status,
       fetchedAt: entry.fetchedAt,
       count,
-      delta: count != null ? getDelta(p.key, p.countMetric, count) : null,
+      delta: count != null ? getDelta(p.key, p.countMetric, count, SOCIAL_DELTA_MS) : null,
     };
   });
 
@@ -60,5 +62,14 @@ export function GET() {
     limitUsd: num(ab.values, "limitUsd"),
   };
 
-  return NextResponse.json({ ts: new Date().toISOString(), social, revenue, web, apify });
+  // Subreddit moderator traffic (dormant until Reddit API approval).
+  const rt = cache.getEntry("reddit_traffic");
+  const subreddit = {
+    status: rt.status,
+    fetchedAt: rt.fetchedAt,
+    weeklyVisitors: num(rt.values, "weekly_visitors"),
+    weeklyPageviews: num(rt.values, "weekly_pageviews"),
+  };
+
+  return NextResponse.json({ ts: new Date().toISOString(), social, revenue, web, apify, subreddit });
 }

@@ -1,7 +1,7 @@
 "use client";
 import { useMetrics } from "@/hooks/use-metrics";
-import { BigMetric, Tile } from "./metric-card";
-import { currency, isStale } from "@/lib/format";
+import { MetricChart } from "./metric-chart";
+import { currency, full, isStale } from "@/lib/format";
 
 export function RevenueSection() {
   const { data } = useMetrics();
@@ -12,36 +12,42 @@ export function RevenueSection() {
   return (
     <section className="section area-revenue">
       <div className="section-title">Revenue</div>
-      <BigMetric
+      <MetricChart
+        platform="stripe"
+        metric="mrr"
         label="MRR"
         value={currency(r?.mrr ?? null)}
         delta={r?.mrrDelta}
         notConfigured={nc}
         stale={stale}
       />
-      <BigMetric
+      <MetricChart
+        platform="stripe"
+        metric="revenue30d"
         label="Revenue (30d)"
         value={currency(r?.revenue30d ?? null)}
         delta={r?.revenue30dDelta}
         notConfigured={nc}
         stale={stale}
       />
-      <div className="tile-row">
-        <Tile
-          label="Customers"
-          value={r?.customers != null ? String(r.customers) : "—"}
-          secondary
-          notConfigured={nc}
-          stale={stale}
-        />
-        <Tile
-          label="Conversions (30d)"
-          value={r?.conversions != null ? String(r.conversions) : "—"}
-          secondary
-          notConfigured={nc}
-          stale={stale}
-        />
-      </div>
+      <MetricChart
+        platform="stripe"
+        metric="customers"
+        label="Customers"
+        value={r?.customers != null ? full(r.customers) : "—"}
+        color="var(--accent)"
+        notConfigured={nc}
+        stale={stale}
+      />
+      <MetricChart
+        platform="stripe"
+        metric="conversions"
+        label="Conversions (30d)"
+        value={r?.conversions != null ? full(r.conversions) : "—"}
+        color="var(--accent)"
+        notConfigured={nc}
+        stale={stale}
+      />
     </section>
   );
 }

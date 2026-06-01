@@ -9,6 +9,12 @@ export function compact(n: number | null | undefined): string {
   return String(Math.round(n));
 }
 
+/** Full number with thousands separators, e.g. 2591 → "2,591". */
+export function full(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return Math.round(n).toLocaleString("en-US");
+}
+
 /** Whole-number currency, e.g. 4820 → "$4,820". */
 export function currency(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "—";

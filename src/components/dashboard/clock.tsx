@@ -13,7 +13,12 @@ export function Clock() {
   if (!now) return <span className="dash-clock">--:--</span>;
 
   const date = now.toLocaleDateString("en-US", { month: "short", day: "numeric", weekday: "short" });
-  const time = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+  const time = now.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
 
   return (
     <span className="dash-clock">

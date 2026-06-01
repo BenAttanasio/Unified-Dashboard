@@ -1,11 +1,15 @@
 import * as cache from "@/lib/cache";
-import { insertSnapshots, logFetch, cleanupOldData, getLatestByPlatform } from "@/lib/db";
+import { insertSnapshots, recordDailySnapshot, logFetch, cleanupOldData, getLatestByPlatform } from "@/lib/db";
 import { HttpError } from "@/lib/fetcher";
 import { INTERVALS, type FetchStatus } from "@/lib/constants";
+import { summarize } from "@/lib/log-summary";
 import * as youtube from "./platforms/youtube";
 import * as apify from "./platforms/apify";
 import * as apifyBilling from "./platforms/apify-billing";
+import * as tiktokLikes from "./platforms/tiktok-likes";
+import * as skool from "./platforms/skool";
 import * as reddit from "./platforms/reddit";
+import * as redditTraffic from "./platforms/reddit-traffic";
 import * as stripe from "./platforms/stripe";
 import * as vercel from "./platforms/vercel";
 
@@ -44,15 +48,19 @@ function due(key: string, intervalMs: number): boolean {
   return true; // never succeeded, or in error → attempt now
 }
 
+/** Mark a successful fetch: cache + snapshot + an informative log line. */
+function ok(key: string, values: Record<string, number>) {
+  cache.setOk(key, values);
+  insertSnapshots(key, values);
+  logFetch(key, "ok", undefined, summarize(key, values));
+}
+
 async function tickYouTube() {
   const key = "youtube";
   if (!youtube.isConfigured()) return cache.setNotConfigured(key);
   if (!due(key, INTERVALS.youtube)) return;
   try {
-    const values = await youtube.fetchYouTube();
-    cache.setOk(key, values);
-    insertSnapshots(key, values);
-    logFetch(key, "ok");
+    ok(key, await youtube.fetchYouTube());
   } catch (err) {
     fail(key, err);
   }
@@ -60,15 +68,13 @@ async function tickYouTube() {
 
 const SOCIAL_KEYS = ["instagram", "tiktok", "twitter"] as const;
 
+// Subreddit MEMBER count via Reddit OAuth (dormant until API access is approved).
 async function tickReddit() {
   const key = "reddit";
   if (!reddit.isConfigured()) return cache.setNotConfigured(key);
   if (!due(key, INTERVALS.reddit)) return;
   try {
-    const values = await reddit.fetchReddit();
-    cache.setOk(key, values);
-    insertSnapshots(key, values);
-    logFetch(key, "ok");
+    ok(key, await reddit.fetchReddit());
   } catch (err) {
     fail(key, err);
   }
@@ -84,20 +90,39 @@ async function tickApify() {
     const results = await apify.fetchApify();
     for (const k of SOCIAL_KEYS) {
       const values = results[k];
-      if (values) {
-        cache.setOk(k, values);
-        insertSnapshots(k, values);
-      } else {
-        // The actor returned nothing usable for this platform this run.
-        cache.setError(k, "error", "No data returned for this platform");
-      }
+      if (values) ok(k, values);
+      else cache.setError(k, "error", "No data returned for this platform");
     }
     cache.setOk("apify", { ok: 1 });
-    logFetch("apify", "ok");
+    logFetch("apify", "ok", undefined, "scrape complete");
   } catch (err) {
     const c = classify(err);
     cache.setError("apify", c.status, c.message);
     for (const k of SOCIAL_KEYS) fail(k, err);
+  }
+}
+
+// TikTok total likes/hearts via a separate paid Apify actor (opt-in).
+async function tickTikTokLikes() {
+  const key = "tiktok_likes";
+  if (!tiktokLikes.isConfigured()) return cache.setNotConfigured(key);
+  if (!due(key, INTERVALS.tiktokLikes)) return;
+  try {
+    ok(key, await tiktokLikes.fetchTikTokLikes());
+  } catch (err) {
+    fail(key, err);
+  }
+}
+
+// Skool community member count via a separate paid Apify actor (opt-in).
+async function tickSkool() {
+  const key = "skool";
+  if (!skool.isConfigured()) return cache.setNotConfigured(key);
+  if (!due(key, INTERVALS.skool)) return;
+  try {
+    ok(key, await skool.fetchSkool());
+  } catch (err) {
+    fail(key, err);
   }
 }
 
@@ -106,10 +131,7 @@ async function tickStripe() {
   if (!stripe.isConfigured()) return cache.setNotConfigured(key);
   if (!due(key, INTERVALS.stripe)) return;
   try {
-    const values = await stripe.fetchStripe();
-    cache.setOk(key, values);
-    insertSnapshots(key, values);
-    logFetch(key, "ok");
+    ok(key, await stripe.fetchStripe());
   } catch (err) {
     fail(key, err);
   }
@@ -120,10 +142,13 @@ async function tickVercel() {
   if (!vercel.isConfigured()) return cache.setNotConfigured(key);
   if (!due(key, INTERVALS.vercel)) return;
   try {
-    const values = await vercel.fetchVercel();
-    cache.setOk(key, values);
-    insertSnapshots(key, values);
-    logFetch(key, "ok");
+    const { values, daily } = await vercel.fetchVercel();
+    ok(key, values); // headline 7d sums + delta
+    // Persist each day so the chart grows to a true 30-day daily history.
+    for (const d of daily) {
+      recordDailySnapshot("vercel", "views", d.views, d.date);
+      recordDailySnapshot("vercel", "visitors", d.visitors, d.date);
+    }
   } catch (err) {
     fail(key, err);
   }
@@ -134,10 +159,18 @@ async function tickApifyBilling() {
   if (!apifyBilling.isConfigured()) return cache.setNotConfigured(key);
   if (!due(key, INTERVALS.apifyBilling)) return;
   try {
-    const values = await apifyBilling.fetchApifyBilling();
-    cache.setOk(key, values);
-    insertSnapshots(key, values);
-    logFetch(key, "ok");
+    ok(key, await apifyBilling.fetchApifyBilling());
+  } catch (err) {
+    fail(key, err);
+  }
+}
+
+async function tickRedditTraffic() {
+  const key = "reddit_traffic";
+  if (!redditTraffic.isConfigured()) return cache.setNotConfigured(key);
+  if (!due(key, INTERVALS.redditTraffic)) return;
+  try {
+    ok(key, await redditTraffic.fetchRedditTraffic());
   } catch (err) {
     fail(key, err);
   }
@@ -146,10 +179,13 @@ async function tickApifyBilling() {
 function masterTick() {
   void tickYouTube();
   void tickApify();
+  void tickTikTokLikes();
+  void tickSkool();
   void tickReddit();
   void tickStripe();
   void tickVercel();
   void tickApifyBilling();
+  void tickRedditTraffic();
 }
 
 /** Warm the cache from the last DB snapshots so a restart shows data instantly

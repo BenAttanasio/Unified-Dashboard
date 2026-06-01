@@ -4,11 +4,17 @@ import type { FetchStatus } from "./constants";
 // so no server code is pulled into the browser bundle).
 
 export interface SocialMetric {
+  /** Unique row identity (React key). e.g. "youtube" or "youtube:views". */
+  id: string;
+  /** Platform: cache key + history/delta lookup key. e.g. "youtube". */
   key: string;
   label: string;
+  /** The metric name to chart history for, e.g. "followers" / "members". */
+  metric: string;
   status: FetchStatus;
   fetchedAt: number | null;
   count: number | null;
+  /** Net change vs ~30 days ago (SOCIAL_DELTA_MS), matching the 30-day sparkline. */
   delta: number | null;
 }
 
@@ -37,12 +43,20 @@ export interface ApifyBillingMetric {
   limitUsd: number | null;
 }
 
+export interface SubredditMetric {
+  status: FetchStatus;
+  fetchedAt: number | null;
+  weeklyVisitors: number | null;
+  weeklyPageviews: number | null;
+}
+
 export interface MetricsResponse {
   ts: string;
   social: SocialMetric[];
   revenue: RevenueMetric;
   web: WebMetric;
   apify: ApifyBillingMetric;
+  subreddit: SubredditMetric;
 }
 
 export interface SystemStatsView {
@@ -53,6 +67,6 @@ export interface SystemStatsView {
   swap?: { total: number; used: number; pct: number };
   temp?: number;
   disk?: { total: number; used: number; pct: number };
-  service?: { label: string; status: string };
+  service?: { label: string; status: string; detail?: string };
   uptime?: string;
 }

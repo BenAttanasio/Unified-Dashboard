@@ -11,9 +11,10 @@ interface HistoryResponse {
   points: HistoryPoint[];
 }
 
-export function useHistory(platform: string, metric: string, days = 30) {
+export function useHistory(platform: string, metric: string, days = 30, enabled = true) {
   const url = `/api/metrics/history?platform=${platform}&metric=${metric}&days=${days}`;
-  return useSWR<HistoryResponse>(url, fetcher, {
+  return useSWR<HistoryResponse>(enabled ? url : null, fetcher, {
     refreshInterval: 5 * 60_000,
+    keepPreviousData: true,
   });
 }

@@ -15,7 +15,7 @@ export interface SystemStats {
   temp: number;
   disk: { total: number; used: number; pct: number };
   /** Optional systemd unit health, configured via MONITOR_SERVICE. */
-  service?: { label: string; status: string };
+  service?: { label: string; status: string; detail?: string };
   uptime: string;
 }
 
@@ -63,7 +63,7 @@ export function getSystemStats(): SystemStats | { disabled: true } {
   // Optionally report a systemd user service's status (e.g. another app on the
   // box). Configure with MONITOR_SERVICE=<unit>.service and an optional
   // MONITOR_SERVICE_LABEL. Left unset → this chip is simply omitted.
-  let service: { label: string; status: string } | undefined;
+  let service: { label: string; status: string; detail?: string } | undefined;
   const unit = process.env.MONITOR_SERVICE;
   if (unit && /^[A-Za-z0-9._@-]+$/.test(unit)) {
     let status = "unknown";
@@ -73,9 +73,23 @@ export function getSystemStats(): SystemStats | { disabled: true } {
       const err = e as { stdout?: Buffer };
       status = err.stdout ? err.stdout.toString().trim() : "inactive";
     }
+    // When unhealthy, capture a recent log tail so the UI can show WHY on tap.
+    // (unit is regex-validated above, so the interpolation is injection-safe.)
+    let detail: string | undefined;
+    if (status !== "active") {
+      try {
+        detail = execSync(`journalctl --user -u ${unit} -n 14 --no-pager`, { timeout: 2000 })
+          .toString()
+          .trim()
+          .slice(-2000);
+      } catch (e) {
+        detail = (e as { stdout?: Buffer }).stdout?.toString().trim() || undefined;
+      }
+    }
     service = {
       label: process.env.MONITOR_SERVICE_LABEL || unit.replace(/\.service$/, ""),
       status,
+      detail,
     };
   }
 

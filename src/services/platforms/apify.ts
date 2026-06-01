@@ -2,8 +2,9 @@ import { fetchJson } from "@/lib/fetcher";
 import type { MetricValues } from "@/lib/constants";
 
 // All-in-one social follower scraper: k1ra/social-media-followers-scraper.
-// APIFY_API_TOKEN holds the full run-sync-get-dataset-items endpoint URL with
-// the ?token=... appended, so we just POST the input and get dataset items back.
+// APIFY_SOCIAL_API_ENDPOINT holds the full run-sync-get-dataset-items endpoint
+// URL with the ?token=... appended, so we just POST the input and get dataset
+// items back.
 //
 // Input schema (per actor docs): { instagram:[], tiktok:[], twitter:[], reddit:[] }
 //   - usernames WITHOUT the leading @
@@ -11,12 +12,14 @@ import type { MetricValues } from "@/lib/constants";
 //     count), not user profiles. We still pass REDDIT_USERNAME best-effort; if
 //     the actor returns nothing usable for it, Reddit simply shows stale/empty.
 
-// Reddit is handled separately (reddit.ts via OAuth) — the actor's reddit field
-// is subreddit-based and doesn't fit user profiles.
+// NOTE: this actor documents a `reddit` (subreddit) field, but verified
+// 2026-06-01 it silently returns NOTHING for reddit (even huge subreddits) while
+// IG/TikTok/X work. So Reddit is handled entirely via OAuth (reddit.ts for member
+// count, reddit-traffic.ts for weekly visitors) — not Apify.
 export type ApifyResults = Partial<Record<"instagram" | "tiktok" | "twitter", MetricValues>>;
 
 export function isConfigured(): boolean {
-  return Boolean(process.env.APIFY_API_TOKEN);
+  return Boolean(process.env.APIFY_SOCIAL_API_ENDPOINT);
 }
 
 /** True if at least one social username is set (otherwise nothing to scrape). */
@@ -84,7 +87,7 @@ export function parseItems(items: AnyItem[]): ApifyResults {
 }
 
 export async function fetchApify(): Promise<ApifyResults> {
-  const endpoint = process.env.APIFY_API_TOKEN!;
+  const endpoint = process.env.APIFY_SOCIAL_API_ENDPOINT!;
   const input = buildInput();
   // run-sync waits for the scrape to finish — allow up to 4 minutes.
   const items = await fetchJson<AnyItem[]>(

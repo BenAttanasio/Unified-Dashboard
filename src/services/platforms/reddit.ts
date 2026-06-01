@@ -1,11 +1,14 @@
 import { fetchJson } from "@/lib/fetcher";
 import type { MetricValues } from "@/lib/constants";
 
-// Reddit profile stats via official OAuth (app-only / client_credentials grant).
+// Subreddit MEMBER count via official OAuth (app-only / client_credentials grant).
 // Reddit blocks unauthenticated JSON (403), so this needs a free "script" app:
 //   https://www.reddit.com/prefs/apps → create app (type: script) →
 //   REDDIT_CLIENT_ID (under the app name) + REDDIT_CLIENT_SECRET.
-// Returns the profile's follower count (u/<user> subreddit subscribers) + karma.
+// Public subreddit subscriber count works with the app-only grant (no user
+// needed). Weekly *visitors* (moderator-only) live in reddit-traffic.ts instead.
+//
+// Dormant until Reddit API access is approved + the env vars are set.
 
 const UA = "unified-dashboard/1.0 (business dashboard)";
 
@@ -13,7 +16,9 @@ const g = globalThis as unknown as { __redditToken?: { value: string; expiresAt:
 
 export function isConfigured(): boolean {
   return Boolean(
-    process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET && process.env.REDDIT_USERNAME,
+    process.env.REDDIT_CLIENT_ID &&
+      process.env.REDDIT_CLIENT_SECRET &&
+      process.env.REDDIT_TRAFFIC_SUBREDDIT,
   );
 }
 
@@ -43,24 +48,22 @@ async function getToken(): Promise<string> {
 
 interface AboutResponse {
   data?: {
-    subreddit?: { subscribers?: number };
-    total_karma?: number;
-    link_karma?: number;
-    comment_karma?: number;
+    subscribers?: number;
+    active_user_count?: number;
   };
 }
 
 export async function fetchReddit(): Promise<MetricValues> {
-  const user = process.env.REDDIT_USERNAME!;
+  const sub = process.env.REDDIT_TRAFFIC_SUBREDDIT!;
   const token = await getToken();
 
   const res = await fetchJson<AboutResponse>(
-    `https://oauth.reddit.com/user/${encodeURIComponent(user)}/about`,
+    `https://oauth.reddit.com/r/${encodeURIComponent(sub)}/about`,
     { headers: { Authorization: `Bearer ${token}`, "User-Agent": UA } },
   );
   const d = res.data ?? {};
   return {
-    followers: d.subreddit?.subscribers ?? 0,
-    karma: d.total_karma ?? 0,
+    members: d.subscribers ?? 0,
+    online: d.active_user_count ?? 0,
   };
 }

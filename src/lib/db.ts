@@ -53,6 +53,14 @@ function migrate(handle: Database.Database) {
       recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+  // Additive migration for the live-log value summary ("stripe ok — MRR $13").
+  // migrate() only does CREATE TABLE IF NOT EXISTS, so add the column guarded —
+  // it throws "duplicate column" on already-migrated databases, which we ignore.
+  try {
+    handle.exec("ALTER TABLE fetch_logs ADD COLUMN summary TEXT");
+  } catch {
+    /* column already exists */
+  }
 }
 
 export function dbAvailable(): boolean {
@@ -74,12 +82,61 @@ export function insertSnapshots(platform: string, values: Record<string, number>
   tx(Object.entries(values));
 }
 
-export function logFetch(platform: string, status: string, errorMessage?: string) {
+export function logFetch(platform: string, status: string, errorMessage?: string, summary?: string) {
   const handle = open();
   if (!handle) return;
   handle
-    .prepare("INSERT INTO fetch_logs (platform, status, error_message) VALUES (?, ?, ?)")
-    .run(platform, status, errorMessage ?? null);
+    .prepare("INSERT INTO fetch_logs (platform, status, error_message, summary) VALUES (?, ?, ?, ?)")
+    .run(platform, status, errorMessage ?? null, summary ?? null);
+}
+
+export interface LogRow {
+  id: number;
+  platform: string;
+  status: string;
+  error_message: string | null;
+  summary: string | null;
+  recorded_at: string;
+}
+
+/** Most recent fetch-log rows, newest first — feeds the live activity log. */
+export function getRecentLogs(limit = 40): LogRow[] {
+  const handle = open();
+  if (!handle) return [];
+  return handle
+    .prepare(
+      `SELECT id, platform, status, error_message, summary, recorded_at
+         FROM fetch_logs
+        ORDER BY recorded_at DESC, id DESC
+        LIMIT ?`,
+    )
+    .all(limit) as LogRow[];
+}
+
+/**
+ * Upsert ONE day's value for a metric (recorded_at pinned to that calendar day).
+ * Used for true daily series (e.g. Vercel views/visitors) so the chart builds a
+ * real 30-day history over time — one row per day, latest value wins.
+ */
+export function recordDailySnapshot(platform: string, metricName: string, value: number, dayIso: string) {
+  const handle = open();
+  if (!handle || !Number.isFinite(value)) return;
+  const recordedAt = /^\d{4}-\d{2}-\d{2}$/.test(dayIso) ? `${dayIso} 12:00:00` : dayIso;
+  const existing = handle
+    .prepare(
+      `SELECT id FROM metric_snapshots
+        WHERE platform = ? AND metric_name = ? AND date(recorded_at) = date(?) LIMIT 1`,
+    )
+    .get(platform, metricName, recordedAt) as { id: number } | undefined;
+  if (existing) {
+    handle.prepare("UPDATE metric_snapshots SET metric_value = ? WHERE id = ?").run(value, existing.id);
+  } else {
+    handle
+      .prepare(
+        "INSERT INTO metric_snapshots (platform, metric_name, metric_value, recorded_at) VALUES (?, ?, ?, ?)",
+      )
+      .run(platform, metricName, value, recordedAt);
+  }
 }
 
 export interface HistoryPoint {
