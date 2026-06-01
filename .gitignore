@@ -1,0 +1,40 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# secrets & local data
+.env
+.env*.local
+/data
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# os / editor
+.DS_Store
+*.pem
+.vscode/
+*.tsbuildinfo
+next-env.d.ts
+
+# deploy artifacts
+deploy.tar.gz
+patch.tar.gz
+.deploy-stage/
+*.service
+
+# personal / machine-specific (keep local, never publish)
+RASPBERRY_PI_REFERENCE.md
+*.png
+pi-*.sh
+_pi_*.sh

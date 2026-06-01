@@ -1,0 +1,349 @@
+@import "tailwindcss";
+
+/* JetBrains Mono is loaded via next/font/google in layout.tsx, which self-hosts
+   the font into the build output (fetched at build time on Windows, so the Pi
+   needs no internet). It exposes the --font-jetbrains CSS variable used below. */
+
+/* ----------------------------------------------------------------------------
+   Design tokens — loose inspiration from the Garmin watch face:
+   coral primary numbers, green accent labels/icons, white secondary, on black.
+---------------------------------------------------------------------------- */
+:root {
+  --bg: #08090a; /* near-pure black, like the watch */
+  --surface: #111418; /* barely-raised tile background */
+  --divider: #262b31; /* thin 1px separators between tiles/sections */
+
+  --primary: #f0736a; /* coral — primary numbers (watch time & 33%) */
+  --accent: #7ec46f; /* green — labels, icons, tags */
+  --text: #e6edf3; /* white secondary numbers */
+  --muted: #8b949e; /* dim labels, "Xm ago", not-configured */
+
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --info: #58a6ff;
+
+  --font-num: var(--font-jetbrains), ui-monospace, "Cascadia Code", "Fira Code",
+    monospace;
+
+  --gap: 1rem;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  /* Fluid root size so everything fills the screen at any Pi resolution. */
+  font-size: clamp(13px, 2.1vmin, 26px);
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden; /* kiosk: never scroll */
+}
+
+/* ----------------------------------------------------------------------------
+   Top-level responsive grid. Components are orientation-blind; only this
+   reflows between landscape (columns) and portrait (stacked rows).
+---------------------------------------------------------------------------- */
+.app {
+  display: flex;
+  flex-direction: column;
+  width: 100dvw;
+  height: 100dvh;
+  padding: var(--gap);
+  gap: var(--gap);
+  overflow: hidden;
+}
+
+.layout {
+  display: grid;
+  gap: var(--gap);
+  flex: 1;
+  min-height: 0;
+}
+
+@media (orientation: landscape) {
+  .layout {
+    grid-template-columns: 1fr 1.3fr 1fr;
+    grid-template-rows: 1fr auto;
+    grid-template-areas:
+      "revenue audience web"
+      "system  system   system";
+  }
+}
+
+@media (orientation: portrait) {
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto auto;
+    grid-template-areas:
+      "revenue"
+      "audience"
+      "web"
+      "system";
+  }
+}
+
+.area-revenue {
+  grid-area: revenue;
+}
+.area-audience {
+  grid-area: audience;
+}
+.area-web {
+  grid-area: web;
+}
+.area-system {
+  grid-area: system;
+}
+
+/* ----------------------------------------------------------------------------
+   Sections & tiles
+---------------------------------------------------------------------------- */
+.section {
+  background: var(--surface);
+  border-radius: 0.6rem;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.section-title {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 0.8rem;
+}
+.section-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.apify-cost {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+/* A row of tiles separated by thin vertical dividers (the watch arrangement). */
+.tile-row {
+  display: flex;
+  align-items: stretch;
+}
+.tile-row > * + * {
+  border-left: 1px solid var(--divider);
+}
+
+/* A single metric tile: green label/icon on top, big number, small delta. */
+.tile {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.4rem 0.7rem;
+  min-width: 0;
+}
+.tile-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--accent);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tile-icon {
+  width: 0.85em;
+  height: 0.85em;
+  flex-shrink: 0;
+  stroke: var(--accent);
+  fill: none;
+}
+.tile-value {
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--primary);
+  white-space: nowrap;
+}
+.tile-value.secondary {
+  color: var(--text);
+}
+.tile-unit {
+  font-size: 0.55em;
+  vertical-align: super;
+  color: var(--muted);
+  margin-left: 0.1em;
+}
+.tile-delta {
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+.delta-up {
+  color: var(--ok);
+}
+.delta-down {
+  color: var(--crit);
+}
+.delta-flat {
+  color: var(--muted);
+}
+
+/* Stacked big metric (e.g. MRR hero in the revenue column). */
+.metric-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 1rem;
+}
+.metric-stack .tile-value {
+  font-size: 2.6rem;
+}
+
+/* Stale / not-configured states */
+.is-stale .tile-value {
+  opacity: 0.45;
+}
+.stale-tag {
+  color: var(--muted);
+  font-size: 0.55rem;
+}
+.not-configured {
+  color: var(--muted);
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+/* ----------------------------------------------------------------------------
+   Audience rows (platform list)
+---------------------------------------------------------------------------- */
+.platform-list {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  flex: 1;
+  gap: 0.3rem;
+}
+.platform-row {
+  display: grid;
+  grid-template-columns: 1.4em 1fr auto auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--divider);
+}
+.platform-row:last-child {
+  border-bottom: none;
+}
+.platform-name {
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.platform-count {
+  color: var(--text);
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-align: right;
+}
+.platform-delta {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-align: right;
+  min-width: 3.2em;
+}
+.platform-icon {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+/* ----------------------------------------------------------------------------
+   System bar — thin muted strip
+---------------------------------------------------------------------------- */
+.system-bar {
+  grid-area: system;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.4rem;
+  background: var(--surface);
+  border-radius: 0.6rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.system-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.system-stat strong {
+  color: var(--text);
+  font-weight: 700;
+}
+.status-dot {
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+  display: inline-block;
+  background: var(--muted);
+}
+.status-dot.ok {
+  background: var(--ok);
+}
+.status-dot.warn {
+  background: var(--warn);
+}
+.status-dot.crit {
+  background: var(--crit);
+}
+
+/* ----------------------------------------------------------------------------
+   Header / clock
+---------------------------------------------------------------------------- */
+.dash-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex: 0 0 auto;
+  padding: 0 0.3rem;
+}
+.dash-title {
+  color: var(--primary);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.dash-clock {
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.dash-clock .dash-date {
+  color: var(--muted);
+  margin-right: 0.6rem;
+  font-weight: 500;
+}
