@@ -1,7 +1,7 @@
 "use client";
 import { useMetrics } from "@/hooks/use-metrics";
 import { useHistory } from "@/hooks/use-history";
-import { full, signed, deltaClass, isStale } from "@/lib/format";
+import { full, signed, deltaClass, isStale, trendDirection, trendColor } from "@/lib/format";
 import { Sparkline } from "./sparkline";
 import type { SocialMetric } from "@/lib/types";
 
@@ -22,6 +22,7 @@ function PlatformRow({ p }: { p: SocialMetric }) {
   const stale = !nc && isStale(p.fetchedAt, 6 * 60 * 60_000); // >6h old
   const { data } = useHistory(p.key, p.metric, 30, !nc);
   const points = data?.points ?? [];
+  const dir = trendDirection(points, p.delta);
 
   return (
     <div className={`platform-row${stale ? " is-stale" : ""}`}>
@@ -40,7 +41,7 @@ function PlatformRow({ p }: { p: SocialMetric }) {
       </div>
       {!nc ? (
         <div className="platform-spark">
-          <Sparkline points={points} color="var(--accent)" ariaLabel={`${p.label} trend`} />
+          <Sparkline points={points} color={trendColor(dir)} ariaLabel={`${p.label} trend`} />
         </div>
       ) : null}
     </div>

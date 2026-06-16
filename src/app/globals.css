@@ -75,22 +75,26 @@ body {
 
 @media (orientation: landscape) {
   .layout {
-    grid-template-columns: 1fr 1.3fr 1fr;
-    grid-template-rows: 1fr auto;
+    grid-template-columns: 1fr 1.3fr 1.1fr 1fr;
+    grid-template-rows: 1fr 1fr auto;
     grid-template-areas:
-      "revenue audience web"
-      "system  system   system";
+      "revenue audience web     weather"
+      "revenue audience site    flights"
+      "system  system   system  system";
   }
 }
 
 @media (orientation: portrait) {
   .layout {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr auto auto;
+    grid-template-rows: repeat(6, auto) auto;
     grid-template-areas:
+      "weather"
+      "flights"
       "revenue"
       "audience"
       "web"
+      "site"
       "system";
   }
 }
@@ -103,6 +107,15 @@ body {
 }
 .area-web {
   grid-area: web;
+}
+.area-site {
+  grid-area: site;
+}
+.area-weather {
+  grid-area: weather;
+}
+.area-flights {
+  grid-area: flights;
 }
 .area-system {
   grid-area: system;
@@ -138,14 +151,14 @@ body {
 }
 .section-caption {
   color: var(--muted);
-  font-size: 0.55rem;
+  font-size: 0.64rem;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: none;
   margin-left: 0.35rem;
 }
 .apify-cost {
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: none;
@@ -174,9 +187,9 @@ body {
   align-items: center;
   gap: 0.35rem;
   color: var(--accent);
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
@@ -193,7 +206,7 @@ body {
   font-size: 1.7rem;
   font-weight: 700;
   line-height: 1.05;
-  color: var(--primary);
+  color: var(--text);
   white-space: nowrap;
 }
 .tile-value.secondary {
@@ -236,11 +249,11 @@ body {
 }
 .stale-tag {
   color: var(--muted);
-  font-size: 0.55rem;
+  font-size: 0.64rem;
 }
 .not-configured {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   opacity: 0.7;
 }
 
@@ -433,15 +446,35 @@ button.system-stat:active {
   text-transform: uppercase;
 }
 .dash-clock {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
   color: var(--text);
-  font-size: 0.95rem;
+  font-size: 1.5rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 .dash-clock .dash-date {
   color: var(--muted);
-  margin-right: 0.6rem;
+  margin-right: 0.3rem;
   font-weight: 500;
+}
+/* Small uppercase zone tag, e.g. "CT" / "CET". */
+.dash-clock .dash-zone {
+  color: var(--muted);
+  font-size: 0.62em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  margin-left: 0.25rem;
+}
+/* Secondary CET readout, dimmer + smaller than the primary Central time. */
+.dash-clock .dash-cet {
+  color: var(--muted);
+  font-size: 0.66em;
+  font-weight: 600;
+  margin-left: 0.35rem;
+  padding-left: 0.6rem;
+  border-left: 1px solid var(--divider);
 }
 .dash-header-right {
   display: flex;
@@ -507,9 +540,9 @@ button.system-stat:active {
 }
 .chart-label {
   color: var(--accent);
-  font-size: 0.66rem;
+  font-size: 0.74rem;
   font-weight: 600;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
@@ -523,8 +556,15 @@ button.system-stat:active {
   font-size: 2.1rem;
   font-weight: 700;
   line-height: 1;
-  color: var(--primary);
+  color: var(--text);
   white-space: nowrap;
+}
+/* Consistent one-line grey explanation of a metric, directly under its value. */
+.chart-hint {
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.25;
+  margin-top: 0.15rem;
 }
 .chart-plot {
   flex: 1;
@@ -537,7 +577,7 @@ button.system-stat:active {
   align-self: center;
   margin: auto;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.76rem;
   opacity: 0.7;
 }
 
@@ -717,4 +757,223 @@ button.system-stat:active {
   font-size: 0.92rem;
   font-weight: 700;
   text-align: right;
+}
+
+/* ----------------------------------------------------------------------------
+   Weather (rain timeline) — past 2h · now · next 24h
+---------------------------------------------------------------------------- */
+.weather-verdict {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 0.2rem;
+}
+.weather-current {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+.weather-temp {
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.weather-now-tag {
+  color: var(--info);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+/* The bar: one column per hour, height = % chance, color = rain-grade. */
+.weather-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  flex: 1;
+  min-height: 2.5rem;
+}
+.weather-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+}
+.weather-track {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  border-radius: 2px;
+  background: #0c0f12;
+}
+.weather-fill {
+  width: 100%;
+  border-radius: 2px;
+  min-height: 2px;
+  transition: height 0.3s ease;
+}
+.weather-fill.is-past {
+  opacity: 0.4;
+}
+.weather-fill.is-now {
+  outline: 1px solid var(--text);
+  outline-offset: 1px;
+}
+.weather-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.3rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
+.weather-axis-now {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ----------------------------------------------------------------------------
+   Flights (closest aircraft in the NW field of view)
+---------------------------------------------------------------------------- */
+.flight-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+  justify-content: center;
+  min-height: 0;
+}
+.flight-route {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+.flight-airport {
+  color: var(--text);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.flight-arrow {
+  color: var(--muted);
+  font-size: 1.2rem;
+}
+.flight-cities {
+  color: var(--text);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.flight-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+.flight-callsign {
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.flight-pos {
+  color: var(--muted);
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+.flight-empty {
+  color: var(--muted);
+  font-size: 0.85rem;
+  opacity: 0.7;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+/* ----------------------------------------------------------------------------
+   Site CTA section (benattanasio.com first-party analytics)
+---------------------------------------------------------------------------- */
+.site-pcts {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0.7rem 0;
+}
+.site-pcts > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.site-pct-label {
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.site-pcts strong {
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+/* Labeled, tappable "clicks by button" breakdown bar. */
+.site-bar-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.site-bar-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.site-bar-cta {
+  color: var(--muted);
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+.site-bar {
+  display: flex;
+  width: 100%;
+  height: 0.7rem;
+  border-radius: 0.35rem;
+  overflow: hidden;
+  background: #0c0f12;
+}
+.site-seg {
+  height: 100%;
+  min-width: 2px;
+}
+.site-spark-label {
+  margin-top: 0.6rem;
+  margin-bottom: 0.15rem;
+}
+.site-spark {
+  flex: 1;
+  min-height: 1.4rem;
+  display: flex;
+}
+.site-dot {
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 2px;
+  margin-right: 0.45rem;
+}
+.site-share {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  margin-left: 0.3rem;
 }

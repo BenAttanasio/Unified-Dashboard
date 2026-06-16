@@ -27,10 +27,6 @@ export function summarize(platform: string, values: Values): string | undefined 
       return `${compact(v("likes"))} likes`;
     case "skool":
       return `${compact(v("members"))} members`;
-    case "reddit":
-      return `${compact(v("members"))} members`;
-    case "reddit_traffic":
-      return `${compact(v("weekly_visitors"))} weekly visitors`;
     default:
       return undefined;
   }

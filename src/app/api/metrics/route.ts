@@ -82,14 +82,5 @@ export function GET() {
     limitUsd: num(ab.values, "limitUsd"),
   };
 
-  // Subreddit moderator traffic (dormant until Reddit API approval).
-  const rt = cache.getEntry("reddit_traffic");
-  const subreddit = {
-    status: rt.status,
-    fetchedAt: rt.fetchedAt,
-    weeklyVisitors: num(rt.values, "weekly_visitors"),
-    weeklyPageviews: num(rt.values, "weekly_pageviews"),
-  };
-
-  return NextResponse.json({ ts: new Date().toISOString(), social, revenue, web, site, apify, subreddit });
+  return NextResponse.json({ ts: new Date().toISOString(), social, revenue, web, site, apify });
 }

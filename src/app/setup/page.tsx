@@ -11,23 +11,21 @@ export const dynamic = "force-dynamic";
 const ENV_GROUPS: { group: string; keys: string[] }[] = [
   { group: "YouTube", keys: ["YOUTUBE_API_KEY", "YOUTUBE_CHANNEL_ID"] },
   {
-    group: "Apify (Instagram / TikTok / X / subreddit members)",
-    keys: ["APIFY_SOCIAL_API_ENDPOINT", "INSTAGRAM_USERNAME", "TIKTOK_USERNAME", "TWITTER_USERNAME", "REDDIT_TRAFFIC_SUBREDDIT"],
+    group: "Apify (Instagram / TikTok / X)",
+    keys: ["APIFY_SOCIAL_API_ENDPOINT", "INSTAGRAM_USERNAME", "TIKTOK_USERNAME", "TWITTER_USERNAME"],
   },
   {
     group: "Apify extras (TikTok likes / Skool members — optional)",
     keys: ["APIFY_TIKTOK_API_ENDPOINT", "APIFY_SKOOL_API_ENDPOINT", "SKOOL_GROUP"],
   },
-  {
-    group: "Reddit traffic (moderator — dormant until approved)",
-    keys: ["REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_USERNAME", "REDDIT_PASSWORD", "REDDIT_TRAFFIC_SUBREDDIT"],
-  },
   { group: "Stripe", keys: ["STRIPE_SECRET_KEY"] },
   { group: "Vercel", keys: ["VERCEL_API_TOKEN", "VERCEL_PROJECT_ID", "VERCEL_TEAM_ID"] },
+  { group: "Site analytics (benattanasio.com)", keys: ["SITE_STATS_URL", "SITE_STATS_TOKEN"] },
   { group: "Display / Monitoring (optional)", keys: ["NEXT_PUBLIC_SITE_NAME", "MONITOR_SERVICE", "MONITOR_SERVICE_LABEL"] },
 ];
 
-const PLATFORM_KEYS = ["youtube", "instagram", "tiktok", "tiktok_likes", "skool", "reddit", "twitter", "stripe", "vercel", "apifyBilling", "reddit_traffic"];
+// Note: "flights" lives only in live-store (no numeric cache entry), so it's not listed here.
+const PLATFORM_KEYS = ["youtube", "instagram", "tiktok", "tiktok_likes", "skool", "twitter", "stripe", "vercel", "site", "apifyBilling", "weather"];
 
 export default function SetupPage() {
   const present = (k: string) => Boolean(process.env[k] && process.env[k]!.trim() !== "");

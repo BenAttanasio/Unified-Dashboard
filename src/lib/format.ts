@@ -49,3 +49,33 @@ export function isStale(fetchedAt: number | null | undefined, staleMs: number): 
   if (!fetchedAt) return true;
   return Date.now() - fetchedAt > staleMs;
 }
+
+/**
+ * Trend direction over the period actually being charted: +1 up, -1 down, 0 flat.
+ * Prefers the series (first vs last point) so "down" means down over the chart's
+ * own window; falls back to a supplied delta when there's no series yet. This is
+ * what drives the red/green coloring — red is shown ONLY when a metric is truly
+ * down over the period it measures.
+ */
+export function trendDirection(
+  points: { value: number }[] | null | undefined,
+  fallbackDelta?: number | null,
+): number {
+  if (points && points.length >= 2) {
+    const first = points[0].value;
+    const last = points[points.length - 1].value;
+    return Math.sign(last - first);
+  }
+  if (fallbackDelta != null && Number.isFinite(fallbackDelta)) return Math.sign(fallbackDelta);
+  return 0;
+}
+
+/** Headline-number color: red only when down; otherwise neutral white. */
+export function numberColor(dir: number): string {
+  return dir < 0 ? "var(--crit)" : "var(--text)";
+}
+
+/** Chart/sparkline color: red down, green up, muted when flat/unknown. */
+export function trendColor(dir: number): string {
+  return dir < 0 ? "var(--crit)" : dir > 0 ? "var(--ok)" : "var(--muted)";
+}

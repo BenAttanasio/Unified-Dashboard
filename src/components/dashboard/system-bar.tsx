@@ -59,7 +59,7 @@ function SystemDetail({ d }: { d: SystemStatsView }) {
   );
 }
 
-type Sheet = "log" | "service" | "system" | null;
+type Sheet = "log" | "system" | null;
 
 export function SystemBar() {
   const { data } = useSystem();
@@ -67,7 +67,6 @@ export function SystemBar() {
   const [sheet, setSheet] = useState<Sheet>(null);
 
   const latest = logData?.logs?.[0];
-  const service = data && !data.disabled ? data.service : undefined;
 
   const logTrigger = (
     <button className="log-trigger" onClick={() => setSheet("log")} aria-label="Open activity log">
@@ -118,13 +117,6 @@ export function SystemBar() {
             <span className={`status-dot ${pctClass(data.disk?.pct)}`} />
             Disk <strong>{data.disk?.pct}%</strong>
           </button>
-          {service ? (
-            <button className="system-stat" onClick={() => setSheet("service")} aria-label={`${service.label} status`}>
-              <span className={`status-dot ${service.status === "active" ? "ok" : "crit"}`} />
-              {service.label} <strong>{service.status}</strong>
-              <span className="chevron">▸</span>
-            </button>
-          ) : null}
           <button className="system-stat" onClick={() => setSheet("system")} aria-label="System details">
             Uptime <strong>{data.uptime}</strong>
           </button>
@@ -138,21 +130,6 @@ export function SystemBar() {
 
       <DetailSheet open={sheet === "system"} onClose={() => setSheet(null)} title="System">
         <SystemDetail d={data} />
-      </DetailSheet>
-
-      <DetailSheet
-        open={sheet === "service"}
-        onClose={() => setSheet(null)}
-        title={service?.label ?? "Service"}
-        badge={service ? <span className={service.status === "active" ? "delta-up" : "delta-down"}>{service.status}</span> : null}
-      >
-        <pre className="sheet-pre">
-          {service?.detail
-            ? service.detail
-            : service?.status === "active"
-              ? "Service is active and healthy."
-              : "No detail available."}
-        </pre>
       </DetailSheet>
     </>
   );

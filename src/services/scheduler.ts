@@ -1,4 +1,5 @@
 import * as cache from "@/lib/cache";
+import * as live from "@/lib/live-store";
 import { insertSnapshots, recordDailySnapshot, logFetch, cleanupOldData, getLatestByPlatform } from "@/lib/db";
 import { HttpError } from "@/lib/fetcher";
 import { INTERVALS, type FetchStatus } from "@/lib/constants";
@@ -8,11 +9,11 @@ import * as apify from "./platforms/apify";
 import * as apifyBilling from "./platforms/apify-billing";
 import * as tiktokLikes from "./platforms/tiktok-likes";
 import * as skool from "./platforms/skool";
-import * as reddit from "./platforms/reddit";
-import * as redditTraffic from "./platforms/reddit-traffic";
 import * as stripe from "./platforms/stripe";
 import * as vercel from "./platforms/vercel";
 import * as site from "./platforms/site-analytics";
+import * as weather from "./platforms/weather";
+import * as flights from "./platforms/flights";
 
 // The scheduler is the ONLY code that makes external API calls. It writes to the
 // in-memory cache (+ SQLite snapshots); API routes only read the cache.
@@ -24,6 +25,9 @@ import * as site from "./platforms/site-analytics";
 // via cache.canFetch().
 
 const MASTER_TICK_MS = 60_000;
+// Flights move fast, so they poll on their own faster loop (still inside the
+// scheduler — the only place that makes external calls).
+const FLIGHTS_TICK_MS = 25_000;
 
 const g = globalThis as unknown as { __dashSchedulerStarted?: boolean };
 const timers: NodeJS.Timeout[] = [];
@@ -68,18 +72,6 @@ async function tickYouTube() {
 }
 
 const SOCIAL_KEYS = ["instagram", "tiktok", "twitter"] as const;
-
-// Subreddit MEMBER count via Reddit OAuth (dormant until API access is approved).
-async function tickReddit() {
-  const key = "reddit";
-  if (!reddit.isConfigured()) return cache.setNotConfigured(key);
-  if (!due(key, INTERVALS.reddit)) return;
-  try {
-    ok(key, await reddit.fetchReddit());
-  } catch (err) {
-    fail(key, err);
-  }
-}
 
 async function tickApify() {
   if (!apify.isConfigured() || !apify.hasProfiles()) {
@@ -186,14 +178,46 @@ async function tickApifyBilling() {
   }
 }
 
-async function tickRedditTraffic() {
-  const key = "reddit_traffic";
-  if (!redditTraffic.isConfigured()) return cache.setNotConfigured(key);
-  if (!due(key, INTERVALS.redditTraffic)) return;
+// Rain forecast (Open-Meteo, free). The rich timeline lives in the live store;
+// the numeric cache holds a tiny {ok:1} heartbeat purely so due() honors the 15m
+// cadence (same gating trick the shared apify call uses).
+async function tickWeather() {
+  const key = "weather";
+  if (!due(key, INTERVALS.weather)) return;
   try {
-    ok(key, await redditTraffic.fetchRedditTraffic());
+    const data = await weather.fetchWeather();
+    live.setOk(key, data);
+    cache.setOk(key, { ok: 1 });
+    logFetch(key, "ok", undefined, weather.summarize(data));
   } catch (err) {
+    live.setError(key, err instanceof Error ? err.message : String(err));
     fail(key, err);
+  }
+}
+
+// Closest in-view aircraft (adsb.fi + adsbdb, free). Runs on the faster flights
+// loop. To keep the live log readable at 25s cadence, we only log when the shown
+// flight CHANGES (new callsign / appears / clears) — and always on error.
+let lastFlightsLogKey: string | null = null;
+async function tickFlights() {
+  const key = "flights";
+  try {
+    const data = await flights.fetchFlights();
+    live.setOk(key, data);
+    const logKey = data.flight?.callsign ?? "none";
+    if (logKey !== lastFlightsLogKey) {
+      lastFlightsLogKey = logKey;
+      logFetch(key, "ok", undefined, flights.summarize(data));
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    live.setError(key, message);
+    const logKey = `err:${message}`;
+    if (logKey !== lastFlightsLogKey) {
+      lastFlightsLogKey = logKey;
+      logFetch(key, "error", message);
+      console.error(`[scheduler] ${key} failed: ${message}`);
+    }
   }
 }
 
@@ -202,12 +226,11 @@ function masterTick() {
   void tickApify();
   void tickTikTokLikes();
   void tickSkool();
-  void tickReddit();
   void tickStripe();
   void tickVercel();
   void tickSite();
   void tickApifyBilling();
-  void tickRedditTraffic();
+  void tickWeather();
 }
 
 /** Warm the cache from the last DB snapshots so a restart shows data instantly
@@ -233,6 +256,10 @@ export function startScheduler() {
   // "fetch failed" on the first DNS/TLS call right after the Pi reboots).
   setTimeout(masterTick, 4000);
   timers.push(setInterval(masterTick, MASTER_TICK_MS));
+
+  // Flights poll on their own faster cadence (planes cross the view in <1m).
+  setTimeout(() => void tickFlights(), 6000);
+  timers.push(setInterval(() => void tickFlights(), FLIGHTS_TICK_MS));
 
   // Daily retention cleanup.
   cleanupOldData();

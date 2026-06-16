@@ -6,16 +6,8 @@ import type { MetricValues } from "@/lib/constants";
 // URL with the ?token=... appended, so we just POST the input and get dataset
 // items back.
 //
-// Input schema (per actor docs): { instagram:[], tiktok:[], twitter:[], reddit:[] }
+// Input schema (per actor docs): { instagram:[], tiktok:[], twitter:[] }
 //   - usernames WITHOUT the leading @
-//   - NOTE: the actor's `reddit` field is designed for SUBREDDIT names (member
-//     count), not user profiles. We still pass REDDIT_USERNAME best-effort; if
-//     the actor returns nothing usable for it, Reddit simply shows stale/empty.
-
-// NOTE: this actor documents a `reddit` (subreddit) field, but verified
-// 2026-06-01 it silently returns NOTHING for reddit (even huge subreddits) while
-// IG/TikTok/X work. So Reddit is handled entirely via OAuth (reddit.ts for member
-// count, reddit-traffic.ts for weekly visitors) — not Apify.
 export type ApifyResults = Partial<Record<"instagram" | "tiktok" | "twitter", MetricValues>>;
 
 export function isConfigured(): boolean {

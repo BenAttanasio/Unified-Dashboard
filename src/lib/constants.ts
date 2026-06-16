@@ -12,7 +12,6 @@ export const PLATFORMS = [
   "tiktok",
   "tiktok_likes",
   "skool",
-  "reddit",
   "twitter",
   "stripe",
   "vercel",
@@ -42,8 +41,6 @@ export const SOCIAL_PLATFORMS: SocialPlatformMeta[] = [
   { key: "tiktok_likes", label: "TikTok · Likes", countMetric: "likes", usernameEnv: "APIFY_TIKTOK_API_ENDPOINT" },
   // Skool community member count — separate paid Apify actor (see skool.ts).
   { key: "skool", label: "Skool", countMetric: "members", usernameEnv: "APIFY_SKOOL_API_ENDPOINT" },
-  // Reddit row = subreddit MEMBER count (public, via Apify) — not user followers.
-  { key: "reddit", label: "Reddit", countMetric: "members", usernameEnv: "REDDIT_TRAFFIC_SUBREDDIT" },
   { key: "twitter", label: "X / Twitter", countMetric: "followers", usernameEnv: "TWITTER_USERNAME" },
 ];
 
@@ -51,14 +48,13 @@ export const SOCIAL_PLATFORMS: SocialPlatformMeta[] = [
 export const INTERVALS = {
   youtube: 4 * 60 * 60 * 1000, // 4h
   apify: 12 * 60 * 60 * 1000, // 12h (one paid call covers IG/TikTok/X; they move slowly)
-  reddit: 4 * 60 * 60 * 1000, // 4h — subreddit member count via OAuth (dormant until approved)
   stripe: 5 * 60 * 1000, // 5m
   vercel: 10 * 60 * 1000, // 10m
   site: 5 * 60 * 1000, // 5m — first-party benattanasio.com analytics (/api/stats)
   apifyBilling: 30 * 60 * 1000, // 30m — cheap account usage check
-  redditTraffic: 6 * 60 * 60 * 1000, // 6h — moderator weekly traffic (dormant until approved)
   tiktokLikes: 8 * 60 * 60 * 1000, // 8h — separate paid Apify actor (cost-controlled)
   skool: 24 * 60 * 60 * 1000, // 24h — gordian actor is ~$50/1k results; daily ≈ $1.50/mo
+  weather: 15 * 60 * 1000, // 15m — free Open-Meteo forecast; weather changes slowly (shared heartbeat)
 } as const;
 
 // Exponential backoff on failure: 1m → 5m → 15m cap.

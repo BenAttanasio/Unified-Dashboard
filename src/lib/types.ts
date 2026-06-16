@@ -60,13 +60,6 @@ export interface ApifyBillingMetric {
   limitUsd: number | null;
 }
 
-export interface SubredditMetric {
-  status: FetchStatus;
-  fetchedAt: number | null;
-  weeklyVisitors: number | null;
-  weeklyPageviews: number | null;
-}
-
 export interface MetricsResponse {
   ts: string;
   social: SocialMetric[];
@@ -74,7 +67,6 @@ export interface MetricsResponse {
   web: WebMetric;
   site: SiteMetric;
   apify: ApifyBillingMetric;
-  subreddit: SubredditMetric;
 }
 
 export interface SystemStatsView {

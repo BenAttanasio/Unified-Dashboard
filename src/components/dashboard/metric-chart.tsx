@@ -1,7 +1,7 @@
 "use client";
 import { useHistory } from "@/hooks/use-history";
 import type { HistoryPoint } from "@/lib/db";
-import { deltaClass, signed } from "@/lib/format";
+import { deltaClass, signed, trendDirection, numberColor, trendColor } from "@/lib/format";
 import { Sparkline } from "./sparkline";
 
 interface MetricChartProps {
@@ -12,6 +12,9 @@ interface MetricChartProps {
   value: string;
   /** 24h delta; hidden when null or zero. */
   delta?: number | null;
+  /** One-line grey explanation of the metric, shown consistently under the value. */
+  hint?: string;
+  /** Force the sparkline color (overrides the automatic up/down trend color). */
   color?: string;
   days?: number;
   notConfigured?: boolean;
@@ -28,6 +31,7 @@ export function MetricChart({
   label,
   value,
   delta,
+  hint,
   color,
   days = 30,
   notConfigured,
@@ -40,20 +44,26 @@ export function MetricChart({
   const points = override ?? data?.points ?? [];
   const showDelta = !notConfigured && delta != null && delta !== 0;
 
+  // Direction over the charted period drives the color: red shows ONLY when down.
+  const dir = notConfigured ? 0 : trendDirection(points, delta);
+
   return (
     <div className={`chart-card${stale ? " is-stale" : ""}`}>
       <div className="chart-head">
         <span className="chart-label">{label}</span>
         {showDelta ? <span className={`chart-delta ${deltaClass(delta)}`}>{signed(delta)}</span> : null}
       </div>
-      <div className="chart-value">{notConfigured ? "—" : value}</div>
+      <div className="chart-value" style={notConfigured ? undefined : { color: numberColor(dir) }}>
+        {notConfigured ? "—" : value}
+      </div>
+      {hint && !notConfigured ? <div className="chart-hint">{hint}</div> : null}
       <div className="chart-plot">
         {notConfigured ? (
           <span className="chart-note">{emptyNote ?? "Not configured"}</span>
         ) : points.length === 0 ? (
           <span className="chart-note">{emptyNote ?? "collecting…"}</span>
         ) : (
-          <Sparkline points={points} color={color} ariaLabel={`${label} over ${days} days`} />
+          <Sparkline points={points} color={color ?? trendColor(dir)} ariaLabel={`${label} over ${days} days`} />
         )}
       </div>
     </div>
