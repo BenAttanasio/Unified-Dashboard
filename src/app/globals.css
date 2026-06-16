@@ -75,12 +75,14 @@ body {
 
 @media (orientation: landscape) {
   .layout {
-    grid-template-columns: 1fr 1.3fr 1.1fr 1fr;
+    /* SIFT business sections grouped left: Revenue (col1) beside Traffic+benattanasio
+       (col2); Audience (col3, wider for the platform list); Weather/Flights (col4). */
+    grid-template-columns: 1fr 1.1fr 1.3fr 1fr;
     grid-template-rows: 1fr 1fr auto;
     grid-template-areas:
-      "revenue audience web     weather"
-      "revenue audience site    flights"
-      "system  system   system  system";
+      "revenue web    audience weather"
+      "revenue site   audience flights"
+      "system  system system   system";
   }
 }
 
@@ -92,9 +94,9 @@ body {
       "weather"
       "flights"
       "revenue"
-      "audience"
       "web"
       "site"
+      "audience"
       "system";
   }
 }
