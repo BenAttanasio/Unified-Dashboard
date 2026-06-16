@@ -12,6 +12,7 @@ import * as reddit from "./platforms/reddit";
 import * as redditTraffic from "./platforms/reddit-traffic";
 import * as stripe from "./platforms/stripe";
 import * as vercel from "./platforms/vercel";
+import * as site from "./platforms/site-analytics";
 
 // The scheduler is the ONLY code that makes external API calls. It writes to the
 // in-memory cache (+ SQLite snapshots); API routes only read the cache.
@@ -154,6 +155,26 @@ async function tickVercel() {
   }
 }
 
+// First-party website analytics (visitors, CTA clicks/CTR, bounce) from
+// benattanasio.com /api/stats. Mirrors tickVercel: headline 7d values + daily snapshots.
+async function tickSite() {
+  const key = "site";
+  if (!site.isConfigured()) return cache.setNotConfigured(key);
+  if (!due(key, INTERVALS.site)) return;
+  try {
+    const { values, daily } = await site.fetchSite();
+    ok(key, values);
+    for (const d of daily) {
+      recordDailySnapshot("site", "pageviews", d.pageviews, d.date);
+      recordDailySnapshot("site", "visitors", d.visitors, d.date);
+      recordDailySnapshot("site", "clicks", d.clicks, d.date);
+      recordDailySnapshot("site", "bounce", d.bounce, d.date);
+    }
+  } catch (err) {
+    fail(key, err);
+  }
+}
+
 async function tickApifyBilling() {
   const key = "apifyBilling";
   if (!apifyBilling.isConfigured()) return cache.setNotConfigured(key);
@@ -184,6 +205,7 @@ function masterTick() {
   void tickReddit();
   void tickStripe();
   void tickVercel();
+  void tickSite();
   void tickApifyBilling();
   void tickRedditTraffic();
 }

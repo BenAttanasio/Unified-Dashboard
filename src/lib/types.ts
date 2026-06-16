@@ -36,6 +36,23 @@ export interface WebMetric {
   visitors7d: number | null;
 }
 
+export interface SiteMetric {
+  status: FetchStatus;
+  fetchedAt: number | null;
+  /** 7-day rollups from benattanasio.com /api/stats. */
+  pageviews7d: number | null;
+  visitors7d: number | null;
+  clicks7d: number | null;
+  /** CTR = clicks ÷ pageviews (fraction 0..1). */
+  ctr: number | null;
+  /** Conversion = clicks ÷ unique visitors (fraction 0..1). */
+  conversion: number | null;
+  /** Bounce rate (fraction 0..1). */
+  bounce: number | null;
+  /** Per-placement CTA click counts, e.g. { hero: 12, footer: 4, topbar: 9 }. */
+  clicksByLocation: Record<string, number>;
+}
+
 export interface ApifyBillingMetric {
   status: FetchStatus;
   fetchedAt: number | null;
@@ -55,6 +72,7 @@ export interface MetricsResponse {
   social: SocialMetric[];
   revenue: RevenueMetric;
   web: WebMetric;
+  site: SiteMetric;
   apify: ApifyBillingMetric;
   subreddit: SubredditMetric;
 }

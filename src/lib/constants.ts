@@ -16,6 +16,7 @@ export const PLATFORMS = [
   "twitter",
   "stripe",
   "vercel",
+  "site",
 ] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
@@ -53,6 +54,7 @@ export const INTERVALS = {
   reddit: 4 * 60 * 60 * 1000, // 4h — subreddit member count via OAuth (dormant until approved)
   stripe: 5 * 60 * 1000, // 5m
   vercel: 10 * 60 * 1000, // 10m
+  site: 5 * 60 * 1000, // 5m — first-party benattanasio.com analytics (/api/stats)
   apifyBilling: 30 * 60 * 1000, // 30m — cheap account usage check
   redditTraffic: 6 * 60 * 60 * 1000, // 6h — moderator weekly traffic (dormant until approved)
   tiktokLikes: 8 * 60 * 60 * 1000, // 8h — separate paid Apify actor (cost-controlled)

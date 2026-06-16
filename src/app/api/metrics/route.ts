@@ -53,6 +53,26 @@ export function GET() {
     visitors7d: num(v.values, "visitors7d"),
   };
 
+  // First-party website analytics (benattanasio.com /api/stats): visitors,
+  // CTA clicks + CTR/conversion, bounce. Rates are fractions (0..1).
+  const st = cache.getEntry("site");
+  const clicksByLocation = Object.fromEntries(
+    Object.entries(st.values ?? {})
+      .filter(([k]) => k.startsWith("loc_"))
+      .map(([k, v]) => [k.slice(4), v]),
+  );
+  const site = {
+    status: st.status,
+    fetchedAt: st.fetchedAt,
+    pageviews7d: num(st.values, "pageviews7d"),
+    visitors7d: num(st.values, "visitors7d"),
+    clicks7d: num(st.values, "clicks7d"),
+    ctr: num(st.values, "ctr"),
+    conversion: num(st.values, "conversion"),
+    bounce: num(st.values, "bounce"),
+    clicksByLocation,
+  };
+
   // Apify monthly cost tracker.
   const ab = cache.getEntry("apifyBilling");
   const apify = {
@@ -71,5 +91,5 @@ export function GET() {
     weeklyPageviews: num(rt.values, "weekly_pageviews"),
   };
 
-  return NextResponse.json({ ts: new Date().toISOString(), social, revenue, web, apify, subreddit });
+  return NextResponse.json({ ts: new Date().toISOString(), social, revenue, web, site, apify, subreddit });
 }
