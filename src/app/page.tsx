@@ -5,7 +5,7 @@ import { AudienceSection } from "@/components/dashboard/audience-section";
 import { WebSection } from "@/components/dashboard/web-section";
 import { SiteSection } from "@/components/dashboard/site-section";
 import { WeatherSection } from "@/components/dashboard/weather-section";
-import { FlightsSection } from "@/components/dashboard/flights-section";
+import { ForecastSection } from "@/components/dashboard/forecast-section";
 import { SystemBar } from "@/components/dashboard/system-bar";
 
 export default function DashboardPage() {
@@ -25,7 +25,7 @@ export default function DashboardPage() {
         <WebSection />
         <SiteSection />
         <WeatherSection />
-        <FlightsSection />
+        <ForecastSection />
         <SystemBar />
       </div>
     </main>

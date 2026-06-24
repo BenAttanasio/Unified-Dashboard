@@ -2,7 +2,7 @@
 
 A Next.js (App Router) kiosk dashboard running on a Raspberry Pi 5 in landscape
 (1280×800, port 3100). It aggregates social/revenue/web metrics plus a rain
-forecast and overhead flights into one always-on screen.
+forecast (24h hourly + a 7-day daily outlook) into one always-on screen.
 
 > ⚠️ **THIS REPO IS PUBLIC** (github.com/BenAttanasio/Unified-Dashboard).
 > NEVER commit secrets, API keys, tokens, or PII. All secrets live ONLY in `.env`
@@ -42,8 +42,7 @@ Every fetch must land in the live activity log via `logFetch(platform, status, e
 - Rich sources call `logFetch` directly in their tick. Provide a one-line `summarize()`
   in the service so the log reads like `weather ok — Rain likely ~3pm · 71°F`.
 - **Exception:** high-frequency sources should log on CHANGE, not every poll, to keep the
-  log readable. `flights` polls every 25s but only logs when the shown aircraft changes
-  (and always on error) — see `tickFlights` in `src/services/scheduler.ts`.
+  log readable (log only when the shown value changes, and always on error).
 
 ## Adding a NUMERIC source (followers, revenue, counts)
 
@@ -54,17 +53,17 @@ Every fetch must land in the live activity log via `logFetch(platform, status, e
 3. Add the interval to `INTERVALS` (`src/lib/constants.ts`) and a `summarize` case in `log-summary.ts`.
 4. Surface it in `src/app/api/metrics/route.ts` (+ a type in `src/lib/types.ts`), then a section.
 
-## Adding a RICH source (a timeline/object, e.g. weather, flights)
+## Adding a RICH source (a timeline/object, e.g. weather)
 
 The numeric cache only holds `Record<string, number>`, so payloads that are arrays/objects
 use `src/lib/live-store.ts` instead (same `{ status, fetchedAt, data }` convention).
 
-1. Service returns a typed object + a `summarize(data)` helper. Free/keyless examples:
-   - `weather.ts` → Open-Meteo rain forecast (no key).
-   - `flights.ts` → adsb.fi positions + adsbdb.com routes (no key).
+1. Service returns a typed object + a `summarize(data)` helper. Free/keyless example:
+   - `weather.ts` → Open-Meteo forecast (no key): hourly `hours[]` (24h box) + daily
+     `days[]` (7-day box). One fetch feeds both `weather-section.tsx` and `forecast-section.tsx`.
 2. Tick writes `live.setOk(key, data)` / `live.setError(key, msg)` and calls `logFetch`.
    To honor the `due()`/backoff cadence, also write a `cache.setOk(key, { ok: 1 })` heartbeat
-   (see `tickWeather`) — or run on a dedicated interval (see the `flights` 25s loop).
+   (see `tickWeather`).
 3. A dedicated route (`src/app/api/<name>/route.ts`) returns `{ status, fetchedAt, ...data }`.
 4. A `use<Name>()` SWR hook + a section component.
 

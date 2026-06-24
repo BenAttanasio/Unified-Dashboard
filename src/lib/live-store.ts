@@ -1,7 +1,7 @@
 import type { FetchStatus } from "./constants";
 
 // A parallel store to cache.ts for sources whose payload is a rich object/timeline
-// (weather forecast, the closest flight) rather than a bag of numbers. It mirrors
+// (e.g. the weather forecast) rather than a bag of numbers. It mirrors
 // the cache's { status, fetchedAt } convention so API routes read it identically,
 // but holds arbitrary JSON instead of MetricValues. Like the numeric cache it's
 // backed by globalThis so the scheduler (instrumentation bundle) and the route

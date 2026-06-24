@@ -24,7 +24,7 @@ const ENV_GROUPS: { group: string; keys: string[] }[] = [
   { group: "Display / Monitoring (optional)", keys: ["NEXT_PUBLIC_SITE_NAME", "MONITOR_SERVICE", "MONITOR_SERVICE_LABEL"] },
 ];
 
-// Note: "flights" lives only in live-store (no numeric cache entry), so it's not listed here.
+// Note: the rich weather/forecast feed lives in live-store; only its "weather" cache heartbeat is listed here.
 const PLATFORM_KEYS = ["youtube", "instagram", "tiktok", "tiktok_likes", "skool", "twitter", "stripe", "vercel", "site", "apifyBilling", "weather"];
 
 export default function SetupPage() {

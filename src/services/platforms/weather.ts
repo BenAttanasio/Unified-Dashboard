@@ -35,6 +35,20 @@ export interface WeatherHour {
   now: boolean;
 }
 
+export interface WeatherDay {
+  /** Local date, "YYYY-MM-DD". */
+  date: string;
+  /** Short weekday label, e.g. "Mon"; the first day → "Today". */
+  label: string;
+  /** Max chance of precipitation that day, 0..100. */
+  prob: number;
+  /** Total predicted precipitation that day, mm. */
+  amount: number;
+  /** Daily high / low temperature, °F (rounded). */
+  tMax: number | null;
+  tMin: number | null;
+}
+
 export interface WeatherData {
   tempF: number | null;
   /** Current precipitation amount (mm) right now. */
@@ -42,6 +56,8 @@ export interface WeatherData {
   rainingNow: boolean;
   verdict: { text: string; level: "dry" | "maybe" | "rain" };
   hours: WeatherHour[];
+  /** 7-day daily rain-chance outlook (drives the "next 7 days" box). */
+  days: WeatherDay[];
   updatedAt: string;
 }
 
@@ -52,6 +68,13 @@ interface OpenMeteoResponse {
     precipitation?: number[];
     precipitation_probability?: number[];
     temperature_2m?: number[];
+  };
+  daily?: {
+    time?: string[];
+    precipitation_probability_max?: number[];
+    precipitation_sum?: number[];
+    temperature_2m_max?: number[];
+    temperature_2m_min?: number[];
   };
 }
 
@@ -66,6 +89,14 @@ function hourLabel(iso: string, isNow: boolean): string {
   const ampm = h < 12 ? "a" : "p";
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}${ampm}`;
+}
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/** "2026-06-23" → "Mon"; the first day of the series → "Today". */
+function dayLabel(dateIso: string, isFirst: boolean): string {
+  if (isFirst) return "Today";
+  // Parse as UTC midnight so the calendar weekday never shifts by timezone.
+  return WEEKDAYS[new Date(`${dateIso}T00:00:00Z`).getUTCDay()] ?? dateIso.slice(5);
 }
 
 /** "2026-06-16T15:00" → "3pm" for the headline. */
@@ -86,8 +117,9 @@ export async function fetchWeather(): Promise<WeatherData> {
     temperature_unit: "fahrenheit",
     current: "temperature_2m,precipitation",
     hourly: "precipitation,precipitation_probability,temperature_2m",
+    daily: "precipitation_probability_max,precipitation_sum,temperature_2m_max,temperature_2m_min",
     past_days: "1",
-    forecast_days: "2",
+    forecast_days: "7",
   });
   const data = await fetchJson<OpenMeteoResponse>(`https://api.open-meteo.com/v1/forecast?${params}`);
 
@@ -140,6 +172,31 @@ export async function fetchWeather(): Promise<WeatherData> {
     verdict = { text: "No rain next 24h", level: "dry" };
   }
 
+  // 7-day daily outlook for the "next 7 days" box (own Open-Meteo daily block).
+  const d = data.daily;
+  const days: WeatherDay[] = [];
+  if (d?.time?.length) {
+    const dProb = d.precipitation_probability_max ?? [];
+    const dSum = d.precipitation_sum ?? [];
+    const dMax = d.temperature_2m_max ?? [];
+    const dMin = d.temperature_2m_min ?? [];
+    // forecast_days=7 with past_days=1 yields the past day first; keep the 7 days
+    // from today forward by anchoring on the current date.
+    const todayKey = nowIso.slice(0, 10);
+    let start = d.time.findIndex((t) => t >= todayKey);
+    if (start < 0) start = 0;
+    for (let i = start; i < d.time.length && days.length < 7; i++) {
+      days.push({
+        date: d.time[i],
+        label: dayLabel(d.time[i], days.length === 0),
+        prob: Math.round(dProb[i] ?? 0),
+        amount: dSum[i] ?? 0,
+        tMax: dMax[i] != null ? Math.round(dMax[i]) : null,
+        tMin: dMin[i] != null ? Math.round(dMin[i]) : null,
+      });
+    }
+  }
+
   const tempF = data.current?.temperature_2m ?? (temps[nowIdx] ?? null);
   const precipNow = data.current?.precipitation ?? 0;
 
@@ -149,6 +206,7 @@ export async function fetchWeather(): Promise<WeatherData> {
     rainingNow: precipNow >= RAIN_MM,
     verdict,
     hours,
+    days,
     updatedAt: new Date().toISOString(),
   };
 }

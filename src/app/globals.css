@@ -76,12 +76,12 @@ body {
 @media (orientation: landscape) {
   .layout {
     /* SIFT business sections grouped left: Revenue (col1) beside Traffic+benattanasio
-       (col2); Audience (col3, wider for the platform list); Weather/Flights (col4). */
+       (col2); Audience (col3, wider for the platform list); Weather 24h + 7-day (col4). */
     grid-template-columns: 1fr 1.1fr 1.3fr 1fr;
     grid-template-rows: 1fr 1fr auto;
     grid-template-areas:
       "revenue web    audience weather"
-      "revenue site   audience flights"
+      "revenue site   audience forecast"
       "system  system system   system";
   }
 }
@@ -92,7 +92,7 @@ body {
     grid-template-rows: repeat(6, auto) auto;
     grid-template-areas:
       "weather"
-      "flights"
+      "forecast"
       "revenue"
       "web"
       "site"
@@ -116,8 +116,8 @@ body {
 .area-weather {
   grid-area: weather;
 }
-.area-flights {
-  grid-area: flights;
+.area-forecast {
+  grid-area: forecast;
 }
 .area-system {
   grid-area: system;
@@ -838,62 +838,56 @@ button.system-stat:active {
 }
 
 /* ----------------------------------------------------------------------------
-   Flights (closest aircraft in the NW field of view)
+   7-day rain forecast (Open-Meteo daily precipitation probability)
 ---------------------------------------------------------------------------- */
-.flight-card {
+.forecast-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  flex: 1;
+  min-height: 2.5rem;
+  margin-top: 0.5rem;
+}
+.forecast-col {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  flex: 1;
-  justify-content: center;
-  min-height: 0;
-}
-.flight-route {
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-}
-.flight-airport {
-  color: var(--text);
-  font-size: 2rem;
-  font-weight: 700;
-  line-height: 1;
-}
-.flight-arrow {
-  color: var(--muted);
-  font-size: 1.2rem;
-}
-.flight-cities {
-  color: var(--text);
-  font-size: 0.78rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.flight-meta {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-top: 0.2rem;
-}
-.flight-callsign {
-  color: var(--accent);
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-.flight-pos {
-  color: var(--muted);
-  font-size: 0.76rem;
-  white-space: nowrap;
-}
-.flight-empty {
-  color: var(--muted);
-  font-size: 0.85rem;
-  opacity: 0.7;
-  flex: 1;
-  display: flex;
   align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.forecast-prob {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+.forecast-track {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  border-radius: 2px;
+  background: #0c0f12;
+}
+.forecast-fill {
+  width: 100%;
+  border-radius: 2px;
+  min-height: 2px;
+  transition: height 0.3s ease;
+}
+.forecast-col.is-today .forecast-day {
+  color: var(--text);
+  font-weight: 700;
+}
+.forecast-day {
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+}
+.forecast-temp {
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 /* ----------------------------------------------------------------------------
