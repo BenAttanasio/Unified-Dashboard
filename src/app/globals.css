@@ -1,0 +1,1366 @@
+@import "tailwindcss";
+
+/* JetBrains Mono is loaded via next/font/google in layout.tsx, which self-hosts
+   the font into the build output (fetched at build time on Windows, so the Pi
+   needs no internet). It exposes the --font-jetbrains CSS variable used below. */
+
+/* ----------------------------------------------------------------------------
+   Design tokens — loose inspiration from the Garmin watch face:
+   coral primary numbers, green accent labels/icons, white secondary, on black.
+---------------------------------------------------------------------------- */
+:root {
+  --bg: #08090a; /* near-pure black, like the watch */
+  --surface: #111418; /* barely-raised tile background */
+  --divider: #262b31; /* thin 1px separators between tiles/sections */
+
+  --primary: #f0736a; /* coral — primary numbers (watch time & 33%) */
+  --accent: #7ec46f; /* green — labels, icons, tags */
+  --text: #e6edf3; /* white secondary numbers */
+  --muted: #8b949e; /* dim labels, "Xm ago", not-configured */
+
+  --ok: #3fb950;
+  --warn: #d29922;
+  --crit: #f85149;
+  --info: #58a6ff;
+
+  --font-num: var(--font-jetbrains), ui-monospace, "Cascadia Code", "Fira Code",
+    monospace;
+
+  --gap: 1rem;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  /* Fluid root size so everything fills the screen at any Pi resolution. */
+  font-size: clamp(13px, 2.1vmin, 26px);
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden; /* kiosk: never scroll */
+}
+
+/* ----------------------------------------------------------------------------
+   Top-level responsive grid. Components are orientation-blind; only this
+   reflows between landscape (columns) and portrait (stacked rows).
+---------------------------------------------------------------------------- */
+.app {
+  display: flex;
+  flex-direction: column;
+  width: 100dvw;
+  height: 100dvh;
+  padding: var(--gap);
+  gap: var(--gap);
+  overflow: hidden;
+}
+
+.layout {
+  display: grid;
+  gap: var(--gap);
+  flex: 1;
+  min-height: 0;
+}
+
+@media (orientation: landscape) {
+  .layout {
+    /* Audience (col1) and the channel roster (col2) each get a FULL-height
+       column — both are long lists. Coach above Weather in col3. */
+    grid-template-columns: 1.1fr 1.15fr 0.95fr;
+    /* Coach gets the taller cell: it's the only prose box, and the weather
+       strip reads fine compressed. */
+    grid-template-rows: 1.25fr 0.75fr auto;
+    grid-template-areas:
+      "audience roster coach"
+      "audience roster weather"
+      "system   system   system";
+  }
+}
+
+@media (orientation: portrait) {
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(4, auto) auto;
+    grid-template-areas:
+      "weather"
+      "roster"
+      "coach"
+      "audience"
+      "system";
+  }
+}
+
+.area-audience {
+  grid-area: audience;
+}
+.area-roster {
+  grid-area: roster;
+}
+.area-coach {
+  grid-area: coach;
+}
+.area-weather {
+  grid-area: weather;
+}
+.area-system {
+  grid-area: system;
+}
+
+/* ----------------------------------------------------------------------------
+   Sections & tiles
+---------------------------------------------------------------------------- */
+.section {
+  background: var(--surface);
+  border-radius: 0.6rem;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.section-title {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 0.8rem;
+}
+.section-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.section-caption {
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  margin-left: 0.35rem;
+}
+.apify-cost {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+/* A row of tiles separated by thin vertical dividers (the watch arrangement). */
+.tile-row {
+  display: flex;
+  align-items: stretch;
+}
+.tile-row > * + * {
+  border-left: 1px solid var(--divider);
+}
+
+/* A single metric tile: green label/icon on top, big number, small delta. */
+.tile {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.4rem 0.7rem;
+  min-width: 0;
+}
+.tile-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tile-icon {
+  width: 0.85em;
+  height: 0.85em;
+  flex-shrink: 0;
+  stroke: var(--accent);
+  fill: none;
+}
+.tile-value {
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--text);
+  white-space: nowrap;
+}
+.tile-value.secondary {
+  color: var(--text);
+}
+.tile-unit {
+  font-size: 0.55em;
+  vertical-align: super;
+  color: var(--muted);
+  margin-left: 0.1em;
+}
+.tile-delta {
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+.delta-up {
+  color: var(--ok);
+}
+.delta-down {
+  color: var(--crit);
+}
+.delta-flat {
+  color: var(--muted);
+}
+
+/* Stacked big metric (e.g. MRR hero in the revenue column). */
+.metric-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 1rem;
+}
+.metric-stack .tile-value {
+  font-size: 2.6rem;
+}
+
+/* Stale / not-configured states */
+.is-stale .tile-value {
+  opacity: 0.45;
+}
+.stale-tag {
+  color: var(--muted);
+  font-size: 0.64rem;
+}
+.not-configured {
+  color: var(--muted);
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
+
+/* ----------------------------------------------------------------------------
+   Audience rows (platform list)
+---------------------------------------------------------------------------- */
+.platform-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0.4rem;
+  min-height: 0;
+}
+.platform-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.25rem;
+  flex: 1;
+  min-height: 0;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--divider);
+}
+.platform-row:last-child {
+  border-bottom: none;
+}
+.platform-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.platform-name {
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+/* Unit/window qualifier for rows whose number isn't self-explanatory. */
+.platform-hint {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin-left: 0.35rem;
+}
+.platform-figures {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.platform-count {
+  color: var(--text);
+  font-size: 1.45rem;
+  font-weight: 700;
+}
+.platform-delta {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.platform-spark {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* ----------------------------------------------------------------------------
+   YouTube coach
+---------------------------------------------------------------------------- */
+.coach-body {
+  display: flex;
+  flex-direction: column;
+  /* NOT centered: when Claude returns a long verdict, centering overflows the
+     box at BOTH ends and clips the headline as well as the footer. */
+  justify-content: flex-start;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.coach-headline {
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 0.45rem;
+}
+/* Sized to fit the narrower third column without clipping the last bullet. */
+.coach-line {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--text);
+  flex-shrink: 0;
+  margin-bottom: 0.4rem;
+}
+.coach-mark {
+  font-weight: 700;
+}
+.coach-avoid .coach-mark {
+  color: var(--crit);
+}
+.coach-working .coach-mark {
+  color: var(--ok);
+}
+.coach-experiment {
+  color: var(--info);
+}
+/* The one thing on this tile you can act on without thinking, so it gets a
+   boxed treatment rather than another bullet in the stack. */
+.coach-title-idea {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-left: 2px solid var(--accent);
+  background: rgba(126, 196, 111, 0.07);
+  border-radius: 0 3px 3px 0;
+  flex-shrink: 0;
+}
+.coach-title-label {
+  display: block;
+  color: var(--accent);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.12rem;
+}
+.coach-title-text {
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.coach-footer {
+  margin-top: auto;
+  padding-top: 0.3rem;
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+/* ----------------------------------------------------------------------------
+   System bar — thin muted strip
+---------------------------------------------------------------------------- */
+.system-bar {
+  grid-area: system;
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+  background: var(--surface);
+  border-radius: 0.6rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.system-stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.4rem;
+  flex: 1;
+  min-width: 0;
+}
+.system-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0 0.7rem;
+  border-radius: 0.45rem;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+}
+button.system-stat {
+  cursor: pointer;
+}
+button.system-stat:active {
+  background: #1b2027;
+}
+.system-stat strong {
+  color: var(--text);
+  font-weight: 700;
+}
+.system-stat .chevron {
+  color: var(--muted);
+  font-size: 0.7em;
+  margin-left: 0.1rem;
+}
+
+/* Live-log trigger on the right of the system bar (taps open the drawer). */
+.log-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 44px;
+  max-width: 42%;
+  padding: 0 0.9rem;
+  border: 1px solid var(--divider);
+  border-radius: 0.45rem;
+  background: #0c0f12;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+.log-trigger:active {
+  background: #1b2027;
+}
+.log-trigger .log-latest {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.log-trigger .log-platform {
+  color: var(--accent);
+  font-weight: 600;
+  margin-right: 0.35rem;
+}
+.log-pulse {
+  width: 0.55em;
+  height: 0.55em;
+  border-radius: 50%;
+  background: var(--ok);
+  flex-shrink: 0;
+  animation: log-pulse 2s ease-in-out infinite;
+}
+@keyframes log-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.5);
+  }
+  50% {
+    opacity: 0.5;
+    box-shadow: 0 0 0 0.35em rgba(63, 185, 80, 0);
+  }
+}
+.status-dot {
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+  display: inline-block;
+  background: var(--muted);
+}
+.status-dot.ok {
+  background: var(--ok);
+}
+.status-dot.warn {
+  background: var(--warn);
+}
+.status-dot.crit {
+  background: var(--crit);
+}
+
+/* ----------------------------------------------------------------------------
+   Header / clock
+---------------------------------------------------------------------------- */
+.dash-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex: 0 0 auto;
+  padding: 0 0.3rem;
+}
+.dash-title {
+  color: var(--primary);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.dash-clock {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  color: var(--text);
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.dash-clock .dash-date {
+  color: var(--muted);
+  margin-right: 0.3rem;
+  font-weight: 500;
+}
+/* Small uppercase zone tag, e.g. "CT" / "CET". */
+.dash-clock .dash-zone {
+  color: var(--muted);
+  font-size: 0.62em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  margin-left: 0.25rem;
+}
+/* Secondary CET readout, dimmer + smaller than the primary Central time. */
+.dash-clock .dash-cet {
+  color: var(--muted);
+  font-size: 0.66em;
+  font-weight: 600;
+  margin-left: 0.35rem;
+  padding-left: 0.6rem;
+  border-left: 1px solid var(--divider);
+}
+.dash-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+.live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.live-dot {
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: var(--ok);
+  flex-shrink: 0;
+  animation: log-pulse 2s ease-in-out infinite;
+}
+.live-label {
+  font-variant-numeric: tabular-nums;
+  min-width: 4.6em; /* steady width so digits don't shift the layout */
+  text-align: right;
+}
+
+/* ----------------------------------------------------------------------------
+   Generic touch affordance — keep every tap target >= 44px.
+---------------------------------------------------------------------------- */
+.tappable {
+  min-height: 44px;
+  min-width: 44px;
+  cursor: pointer;
+}
+.tappable:active {
+  opacity: 0.7;
+}
+
+/* ----------------------------------------------------------------------------
+   Chart cards (Revenue / Web): label + delta, big value, gradient sparkline.
+---------------------------------------------------------------------------- */
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1;
+  min-height: 0;
+  padding: 0.25rem 0;
+}
+.chart-card + .chart-card {
+  border-top: 1px solid var(--divider);
+  padding-top: 0.5rem;
+}
+.chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.chart-label {
+  color: var(--accent);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chart-delta {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.chart-value {
+  font-size: 2.1rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+  white-space: nowrap;
+}
+/* Consistent one-line grey explanation of a metric, directly under its value. */
+.chart-hint {
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.25;
+  margin-top: 0.15rem;
+}
+.chart-plot {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: flex-end;
+  margin-top: 0.3rem;
+}
+.chart-note {
+  align-self: center;
+  margin: auto;
+  color: var(--muted);
+  font-size: 0.76rem;
+  opacity: 0.7;
+}
+
+/* ----------------------------------------------------------------------------
+   Sparkline — fills its container; the dot is overlaid so it stays round
+   despite the non-uniform (preserveAspectRatio=none) SVG stretch.
+---------------------------------------------------------------------------- */
+.sparkline-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.sparkline {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.sparkline-dot {
+  position: absolute;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0.35rem currentColor;
+}
+
+/* ----------------------------------------------------------------------------
+   Bottom sheet / drawer (live log + service detail)
+---------------------------------------------------------------------------- */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  animation: fade-in 0.15s ease-out;
+}
+.sheet {
+  background: var(--surface);
+  border-top-left-radius: 0.9rem;
+  border-top-right-radius: 0.9rem;
+  border-top: 1px solid var(--divider);
+  max-height: 80dvh;
+  display: flex;
+  flex-direction: column;
+  animation: slide-up 0.2s ease-out;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid var(--divider);
+}
+.sheet-title {
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+}
+.sheet-badge {
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text);
+}
+.sheet-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  border-radius: 0.45rem;
+}
+.sheet-body {
+  padding: 0.6rem 1.1rem 1.1rem;
+  overflow-y: auto;
+  min-height: 0;
+}
+.sheet-pre {
+  font-family: var(--font-num);
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ----------------------------------------------------------------------------
+   Live log rows
+---------------------------------------------------------------------------- */
+.live-log {
+  display: flex;
+  flex-direction: column;
+}
+.log-row {
+  display: grid;
+  grid-template-columns: 0.7em auto 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--divider);
+  font-size: 0.78rem;
+}
+.log-row:last-child {
+  border-bottom: none;
+}
+.log-platform {
+  color: var(--accent);
+  font-weight: 600;
+}
+.log-summary {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.log-summary.log-error {
+  color: var(--crit);
+}
+.log-time {
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-align: right;
+  white-space: nowrap;
+}
+.log-empty {
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 1rem 0;
+}
+
+/* Detail sheet key/value rows (system breakdown) */
+.detail-list {
+  display: flex;
+  flex-direction: column;
+}
+.detail-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--divider);
+}
+.detail-row:last-child {
+  border-bottom: none;
+}
+.detail-label {
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.detail-value {
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* ----------------------------------------------------------------------------
+   Weather (rain timeline) — past 2h · now · next 24h
+---------------------------------------------------------------------------- */
+.weather-verdict {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 0.2rem;
+}
+.weather-current {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+.weather-temp {
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.weather-now-tag {
+  color: var(--info);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+/* The bar: one column per hour, height = % chance, color = rain-grade. */
+.weather-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  flex: 1;
+  min-height: 2.5rem;
+}
+.weather-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+}
+.weather-track {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  border-radius: 2px;
+  background: #0c0f12;
+}
+.weather-fill {
+  width: 100%;
+  border-radius: 2px;
+  min-height: 2px;
+  transition: height 0.3s ease;
+}
+.weather-fill.is-past {
+  opacity: 0.4;
+}
+.weather-fill.is-now {
+  outline: 1px solid var(--text);
+  outline-offset: 1px;
+}
+.weather-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.3rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
+.weather-axis-now {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ----------------------------------------------------------------------------
+   Roster channels — one row per tracked channel (initials only).
+
+   Rows are denser than the audience list because there are ~9 of them: an
+   identity + headline line, a grey detail line, and a strip of bars showing the
+   recent uploads' view counts. The tallest bar is highlighted so a video that
+   has taken off is visible from across the room; coral (rather than the usual
+   blue peak) means the hot threshold was crossed. Coral here is a badge, not a
+   metric value, so it doesn't clash with the "red = down" number convention.
+---------------------------------------------------------------------------- */
+.rost-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0.2rem;
+  min-height: 0;
+}
+.rost-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
+  flex: 1;
+  min-height: 0;
+  padding: 0.12rem 0;
+  border-bottom: 1px solid var(--divider);
+}
+.rost-row:last-child {
+  border-bottom: none;
+}
+/* YouTube rows carry a bar strip, so they need roughly double a social row. */
+.rost-row:has(.rost-bars) {
+  flex: 1.7;
+}
+.rost-row.is-nc {
+  flex: 0.7;
+}
+.rost-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.rost-id {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+}
+.rost-label {
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.rost-tag {
+  color: var(--muted);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--divider);
+  border-radius: 0.25rem;
+  padding: 0 0.28rem;
+}
+.rost-figures {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+.rost-count {
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.rost-delta {
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+.rost-heat {
+  color: var(--primary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+/* A hot channel is flagged by tinting the ROW, not the number: coral on a metric
+   value means "down" everywhere else in this dashboard. */
+.rost-row.is-hot {
+  background: rgba(240, 115, 106, 0.08);
+  border-left: 2px solid var(--primary);
+  border-radius: 0.3rem;
+  padding-left: 0.45rem;
+}
+.rost-sub {
+  color: var(--muted);
+  font-size: 0.63rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Recent uploads, oldest → newest. */
+.rost-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  flex: 1;
+  min-height: 1rem;
+  margin-top: 0.15rem;
+}
+.rost-bar {
+  flex: 1;
+  min-width: 0;
+  border-radius: 1px;
+  background: #2b323a;
+  transition: height 0.3s ease;
+}
+.rost-bar.is-peak {
+  background: var(--info);
+}
+.rost-bar.is-peak-hot {
+  background: var(--primary);
+}
+ /* Inline trend for the IG/TikTok rows. Bounded WIDTH is the whole point: a
+    full-row sparkline in a one-line row is ~30:1 and reads as a straight
+    diagonal no matter what the data does. ~10:1 shows shape. */
+.rost-spark-inline {
+  flex: 1;
+  align-self: center;
+  display: flex;
+  height: 1.15rem;
+  min-width: 2.5rem;
+  max-width: 11rem;
+  margin: 0 0.7rem;
+}
+/* Social rows collapse to a single line, which also buys the YouTube rows the
+   vertical room their bar strips need. */
+.rost-row-social {
+  flex: 0.95;
+}
+.rost-delta-span {
+  color: var(--muted);
+  font-weight: 500;
+  margin-left: 0.1em;
+}
+
+/* ----------------------------------------------------------------------------
+   Performance tab
+   A second full view, selected by the tiny header toggle or ?view=perf.
+
+   Sized to be read from across a room on a 1280x800 kiosk, and to FILL the
+   height: .perf-cols and the panels grow, so there is no dead band at the
+   bottom regardless of how many rule changes exist.
+
+   Series colors are Okabe-Ito (vermillion / bluish-green / blue) and are set
+   inline in perf-view.tsx, NOT from --primary/--accent. The brand coral and
+   green collapse to OKLab dE 0.5 under deuteranopia - a red-green viewer cannot
+   tell YouTube from Instagram. Validated for lightness band, chroma floor,
+   all-pairs CVD separation, normal-vision floor and 3:1 contrast on #111418.
+---------------------------------------------------------------------------- */
+.view-toggle {
+  background: transparent;
+  border: 1px solid var(--divider);
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0.22rem 0.4rem;
+}
+.view-toggle:hover { color: var(--text); border-color: var(--muted); }
+
+.perf-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.2rem 0.3rem 0.4rem;
+}
+.perf-head { display: flex; align-items: baseline; gap: 0.8rem; flex: 0 0 auto; }
+.perf-head-title {
+  color: var(--text); font-size: 0.95rem; font-weight: 700;
+  letter-spacing: 0.14em;
+}
+.perf-head-sub { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.04em; }
+
+/* 2.2fr : 1fr : 1.1fr — the three platform cards take the top half, the
+   feature and change panels share the rest and absorb any slack. */
+/* Proportional split with the coach row below. Content-sizing these let the
+   cards consume the whole viewport and squash the panels to a sliver; a fixed
+   height clipped the second surface row's labels. Flex ratio does both jobs. */
+.perf-cols {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem;
+  flex: 1.9 1 0; min-height: 0;
+}
+.perf-col {
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem 0.7rem;
+  display: flex; flex-direction: column; gap: 0.4rem;
+  min-height: 0;
+}
+.perf-col-head {
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 2px solid;
+  padding-bottom: 0.3rem; flex: 0 0 auto;
+}
+.perf-col-title { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.12em; }
+.perf-badge {
+  font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--warn); border: 1px solid var(--warn); border-radius: 3px;
+  padding: 0.05rem 0.3rem;
+}
+.perf-metric-label {
+  color: var(--muted); font-size: 0.68rem; letter-spacing: 0.06em;
+  text-transform: uppercase; flex: 0 0 auto;
+}
+/* Fixed height, not flex. The grid stretches all three cards to the tallest,
+   and a growing spark turned LinkedIn's single surface row into a giant
+   stretched line with the stats stranded at the bottom. */
+.perf-spark { width: 100%; height: 2.5rem; flex: 0 0 auto; display: block; }
+.perf-spark-empty {
+  color: var(--muted); font-size: 0.7rem; height: 2.5rem; flex: 0 0 auto;
+  display: flex; align-items: center;
+}
+
+.perf-surface { border-top: 1px solid var(--divider); padding-top: 0.4rem; flex: 0 0 auto; }
+.perf-surface-name {
+  color: var(--text); font-size: 0.75rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  display: flex; justify-content: space-between;
+}
+.perf-n { color: var(--muted); font-weight: 500; letter-spacing: 0; text-transform: none; }
+.perf-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.35rem; margin-top: 0.25rem; }
+.perf-stat { display: flex; flex-direction: column; }
+.perf-stat-value {
+  font-size: 1.75rem; font-weight: 700; color: var(--text);
+  font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+.perf-stat-key {
+  color: var(--muted); font-size: 0.62rem; text-transform: uppercase;
+  letter-spacing: 0.06em; margin-top: 0.1rem;
+}
+.perf-lown { color: var(--warn); font-size: 0.65em; }
+
+.perf-delta { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.perf-delta-up { color: var(--ok); }
+.perf-delta-down { color: var(--crit); }
+.perf-delta-none { color: var(--muted); }
+
+.perf-panel {
+  background: var(--surface); border-radius: 6px; padding: 0.55rem 0.75rem 0.65rem;
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+}
+/* Panels clip their own content rather than pushing past the fixed viewport.
+   Without this the coach panels overlapped the panel below them. */
+.perf-panel-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.perf-panel-title {
+  color: var(--muted); font-size: 0.68rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.45rem;
+  flex: 0 0 auto;
+}
+.perf-empty { color: var(--muted); font-size: 0.78rem; line-height: 1.5; }
+
+/* Left-aligned reading order: dot, platform+surface, feature, multiple, n.
+   A name-left / value-right split spans ~950px per column here and reads as two
+   unrelated lists rather than one row. */
+.perf-feature-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem 1.5rem; align-content: start;
+}
+.perf-feature {
+  display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.86rem;
+  white-space: nowrap; overflow: hidden;
+}
+.perf-feature-dot {
+  width: 0.5rem; height: 0.5rem; border-radius: 50%; flex: 0 0 auto;
+  align-self: center;
+}
+.perf-feature-name { color: var(--text); }
+.perf-feature-where {
+  color: var(--muted); font-size: 0.85em; text-transform: uppercase;
+  letter-spacing: 0.05em; flex: 0 0 auto; min-width: 5.2em;
+}
+.perf-feature-mult { font-weight: 700; font-variant-numeric: tabular-nums; }
+.perf-feature-mult.is-up { color: var(--ok); }
+.perf-feature-mult.is-down { color: var(--crit); }
+.perf-feature-n { color: var(--muted); font-size: 0.85em; }
+
+.perf-changes-panel { flex: 1.1 1 0; }
+.perf-change-list { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+.perf-change { border-top: 1px solid var(--divider); padding: 0.35rem 0; }
+.perf-change:first-of-type { border-top: none; }
+.perf-change-rule { color: var(--text); font-size: 0.82rem; }
+.perf-change-id { color: var(--muted); font-weight: 700; margin-right: 0.35rem; }
+.perf-change-meta { color: var(--muted); font-size: 0.72rem; margin-top: 0.15rem; }
+.perf-verdict { margin-left: 0.55rem; font-weight: 700; }
+.perf-verdict.is-good { color: var(--ok); }
+.perf-verdict.is-bad { color: var(--crit); }
+.perf-verdict.is-early { color: var(--warn); }
+
+.perf-caveats {
+  color: var(--muted); font-size: 0.66rem; line-height: 1.45;
+  padding: 0 0.2rem; flex: 0 0 auto; max-height: 3.2rem; overflow: hidden;
+}
+
+.perf-applied {
+  border-top: 1px solid var(--divider); margin-top: 0.4rem; padding-top: 0.35rem;
+}
+.perf-applied-title {
+  color: var(--muted); font-size: 0.58rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; margin-bottom: 0.2rem;
+}
+.perf-applied-row { font-size: 0.68rem; line-height: 1.35; }
+.perf-applied-rule { color: var(--text); }
+.perf-applied-verdict { color: var(--warn); margin-left: 0.35rem; }
+
+/* Coach verdict — the interpretation layer over the numbers above. */
+.perf-headline {
+  color: var(--text); font-size: 1.05rem; font-weight: 700; line-height: 1.25;
+  flex: 0 0 auto; padding: 0 0.2rem;
+}
+
+/* Bullets live inside each platform card, next to the numbers they came from. */
+.perf-read {
+  border-top: 1px solid var(--divider); margin-top: 0.35rem; padding-top: 0.35rem;
+  flex: 1 1 auto; min-height: 0; overflow: hidden;
+}
+.perf-read-line { font-size: 0.72rem; line-height: 1.4; color: var(--text); }
+.perf-read-mark { font-weight: 700; margin-right: 0.15rem; }
+.perf-read-line.is-good .perf-read-mark { color: var(--ok); }
+.perf-read-line.is-bad .perf-read-mark { color: var(--crit); }
+.perf-read-note {
+  color: var(--muted); font-size: 0.65rem; line-height: 1.4; margin-top: 0.25rem;
+}
+
+.perf-coach-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;
+  flex: 1 1 0; min-height: 0;
+}
+
+.perf-idea { margin-bottom: 0.35rem; }
+.perf-idea-title { color: var(--text); font-size: 0.8rem; font-weight: 600; line-height: 1.3; }
+.perf-idea-surface {
+  color: var(--muted); font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; margin-right: 0.4rem;
+}
+.perf-idea-why { color: var(--muted); font-size: 0.66rem; line-height: 1.35; }
+
+.perf-proposal { margin-bottom: 0.4rem; }
+.perf-proposal-head { display: flex; align-items: baseline; gap: 0.4rem; }
+.perf-proposal-change { color: var(--text); font-size: 0.78rem; font-weight: 600; line-height: 1.3; }
+/* Confidence is a label, never colour alone — a low-confidence proposal that
+   reads as high-confidence is the failure mode that matters here. */
+.perf-conf {
+  font-size: 0.55rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  border: 1px solid; border-radius: 3px; padding: 0 0.25rem; flex: 0 0 auto;
+}
+.perf-conf.is-high { color: var(--ok); border-color: var(--ok); }
+.perf-conf.is-medium { color: var(--warn); border-color: var(--warn); }
+.perf-conf.is-low { color: var(--muted); border-color: var(--muted); }
+.perf-proposal-meta { color: var(--muted); font-size: 0.66rem; line-height: 1.4; }
+.perf-proposal-target { color: var(--text); font-weight: 600; }
+.perf-reverses { color: var(--warn); }
+
+.perf-experiment {
+  margin-top: auto; padding-top: 0.4rem; border-top: 1px solid var(--divider);
+  color: var(--text); font-size: 0.7rem; line-height: 1.4;
+}
+.perf-experiment-label {
+  color: var(--accent); font-size: 0.58rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; margin-right: 0.35rem;
+}
+
+/* ----------------------------------------------------------------------------
+   Trading view (read-only mirror of the AI Trader's /api/summary)
+---------------------------------------------------------------------------- */
+.trading-wrap.is-stale { opacity: 0.55; }
+.trading-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--gap);
+  flex: 0 0 auto;
+}
+.trading-kpi {
+  background: var(--surface);
+  border-radius: 0.6rem;
+  padding: 0.8rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.trading-kpi-value {
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.trading-chart {
+  background: var(--surface);
+  border-radius: 0.6rem;
+  padding: 0.7rem 1rem 0.5rem;
+  flex: 0 0 auto;
+}
+.trading-spark { height: 3.2rem; }
+.trading-cols {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: var(--gap);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.trading-list { display: flex; flex-direction: column; }
+.trading-row {
+  display: grid;
+  grid-template-columns: 4.5rem 6rem 5rem 1fr;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid var(--divider);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+.trading-row:first-child { border-top: 0; }
+.trading-action { grid-template-columns: 3.2rem 4.5rem 5rem 1fr; }
+.trading-row-sym { font-weight: 700; color: var(--text); }
+.trading-row-val { color: var(--text); }
+.trading-row-pl { font-weight: 600; }
+.trading-row-meta { color: var(--muted); font-size: 0.72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trading-badge {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.3rem;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+.trading-badge.is-buy { background: rgba(126, 196, 111, 0.16); color: var(--accent); margin-left: 0; }
+.trading-badge.is-sell { background: rgba(240, 115, 106, 0.16); color: var(--primary); margin-left: 0; }
+.trading-badge.is-paused { background: rgba(240, 115, 106, 0.16); color: var(--primary); }
+.trading-badge.is-stale { background: rgba(210, 153, 34, 0.16); color: var(--warn); }
