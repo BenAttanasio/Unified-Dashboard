@@ -51,11 +51,13 @@ function due(key: string, intervalMs: number): boolean {
   return true; // never succeeded, or in error → attempt now
 }
 
-/** Mark a successful fetch: cache + snapshot + an informative log line. */
-function ok(key: string, values: Record<string, number>) {
+/** Mark a successful fetch: cache + snapshot + an informative log line.
+ *  `summaryOverride` is for the one source whose log line needs more than the
+ *  numeric values carry (site, which also reports its Lab breakdown). */
+function ok(key: string, values: Record<string, number>, summaryOverride?: string) {
   cache.setOk(key, values);
   insertSnapshots(key, values);
-  logFetch(key, "ok", undefined, summarize(key, values));
+  logFetch(key, "ok", undefined, summaryOverride ?? summarize(key, values));
 }
 
 async function tickYouTube() {
@@ -160,13 +162,27 @@ async function tickSkool() {
 
 // First-party website analytics (visitors, CTA clicks/CTR, bounce) from
 // benattanasio.com /api/stats: headline 7d values + daily snapshots.
+//
+// The SAME response also carries the Lab breakdown — per-page views, per-tile
+// clicks and the Iron Dunes game events — which is a rich payload, so it goes to
+// the live store under "lab" and is served by /api/lab. One fetch feeds both
+// tabs: no second source, no second cadence, and one log line covering both.
 async function tickSite() {
   const key = "site";
+  // An untouched live-store key already reads as not_configured, so the Lab tab
+  // hides itself when SITE_STATS_URL is unset without any extra bookkeeping.
   if (!site.isConfigured()) return cache.setNotConfigured(key);
-  if (!due(key, INTERVALS.site)) return;
+  // The numeric half survives a restart (warmFromDb seeds it from SQLite) but the
+  // Lab payload is in-memory only, so honoring the 5m cadence after a reboot would
+  // hide the Lab tab from the cycle for up to five minutes. Fetch straight away
+  // when it's missing; backoff still applies, and the call is a free keyless GET.
+  const labMissing = live.get<site.LabData>("lab").data == null;
+  if (!cache.canFetch(key)) return;
+  if (!labMissing && !due(key, INTERVALS.site)) return;
   try {
-    const { values, daily } = await site.fetchSite();
-    ok(key, values);
+    const { values, daily, lab } = await site.fetchSite();
+    live.setOk("lab", lab);
+    ok(key, values, site.summarizeSite(values, lab));
     for (const d of daily) {
       recordDailySnapshot("site", "pageviews", d.pageviews, d.date);
       recordDailySnapshot("site", "visitors", d.visitors, d.date);
@@ -174,6 +190,7 @@ async function tickSite() {
       recordDailySnapshot("site", "bounce", d.bounce, d.date);
     }
   } catch (err) {
+    live.setError("lab", err instanceof Error ? err.message : String(err));
     fail(key, err);
   }
 }

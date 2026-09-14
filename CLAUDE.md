@@ -53,6 +53,23 @@ on purpose. Full design: the pipeline repo's `.claude/performance-loop-reference
 The tab is selected by the header toggle in `page.tsx`, or by `?view=perf` for a
 kiosk with no pointer attached.
 
+### The Lab tab — one fetch, two tabs, instrumented in another repo
+
+`/api/lab` is NOT a third exception: it's a normal RICH source. What's unusual is
+that it has no tick of its own. `tickSite` already polls benattanasio.com
+`/api/stats` every 5m, and the same response carries three breakdown maps —
+`pages` (`pg:<slug>`), `outbound` (`out:<slug>`) and `events` (`ev:<name>`) — so
+`tickSite` splits it: numbers → cache/SQLite, breakdown → `live.setOk("lab", …)`.
+One HTTP call, one cadence, one log line (`summarizeSite` folds the Lab activity
+into it). Don't add a second source for this.
+
+The counters themselves live in the **benattanasio.com** repo (also public):
+`assets/track.js` beacons per-page views and per-link clicks, the Iron Dunes game
+reports runs through `lab/iron-dunes/js/telemetry.js` → `window.bax(name)`, and
+`api/track.js` / `api/stats.js` store and roll them up in Upstash. Event names are
+allowlisted in `api/track.js`; adding one means editing both repos. Nothing there
+is backfillable — a counter starts at zero the day it deploys.
+
 ## Logging — REQUIRED for every source
 
 Every fetch must land in the live activity log via `logFetch(platform, status, errorMessage?, summary?)`

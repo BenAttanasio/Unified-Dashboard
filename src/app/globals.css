@@ -1364,3 +1364,77 @@ button.system-stat:active {
 .trading-badge.is-sell { background: rgba(240, 115, 106, 0.16); color: var(--primary); margin-left: 0; }
 .trading-badge.is-paused { background: rgba(240, 115, 106, 0.16); color: var(--primary); }
 .trading-badge.is-stale { background: rgba(210, 153, 34, 0.16); color: var(--warn); }
+
+/* ----------------------------------------------------------------------------
+   Lab view (per-page views, per-tile clicks and the Iron Dunes funnel)
+
+   Shares the Performance tab's wrapper/panel shell and the Trading tab's KPI
+   strip, because they are the same object: a full-screen read-only tab on the
+   same 1280x800 kiosk. Only the three list idioms below are new.
+
+   The bars are a flat neutral wash, NOT --primary/--ok/--crit: ranking by
+   popularity has no good or bad direction, and coloring it would collide with
+   the app's rule that red means "down over the period charted".
+---------------------------------------------------------------------------- */
+.lab-wrap.is-stale { opacity: 0.55; }
+.lab-spark { height: 3.2rem; display: block; }
+
+.lab-panel-title { display: flex; justify-content: space-between; align-items: baseline; }
+.lab-col-key { font-weight: 500; letter-spacing: 0.04em; text-transform: none; opacity: 0.75; }
+
+.lab-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.15fr;
+  gap: var(--gap);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Name over the bar, both counts right-aligned in fixed columns so the numbers
+   line up down the list regardless of how long a project's name is. */
+.lab-row,
+.lab-funnel-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 3rem 3rem;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.3rem 0.35rem;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  border-radius: 3px;
+}
+.lab-row-bar,
+.lab-funnel-bar {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.lab-row-name,
+.lab-funnel-name {
+  position: relative;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lab-row-n,
+.lab-funnel-n { position: relative; color: var(--text); text-align: right; font-weight: 600; }
+.lab-row-n30,
+.lab-funnel-pct { position: relative; color: var(--muted); text-align: right; font-size: 0.75rem; }
+
+.lab-funnel-step { padding: 0.42rem 0.35rem; }
+.lab-funnel-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--divider);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+.lab-blocked { color: var(--warn); }
